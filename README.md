@@ -6,7 +6,7 @@ Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web 
 
 ## Goals for 2020-2021 : 
 
-I will be improving my MERN Stack and DS/Algorithm Skills. Planning to get placed before the year end. Also, I will be focusing partly on my B.tech degree. Planning to build a good portfolio website using Gatsby.js framework or maybe with MERN Stack with blogging and Newsletter subscription feature. 
+I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to get placed before the year end. Also, I will be focusing partly on my B.tech degree. Planning to build a good portfolio website using ` Gatsby.js framework ` or maybe with ` MERN Stack ` with blogging and Newsletter subscription feature. 
 
 ### Languages :
 
