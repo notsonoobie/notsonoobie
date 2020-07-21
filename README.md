@@ -63,7 +63,7 @@ I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to g
     
   + **University/B.Tech** :
 
-    ` Thakur College of Engineering & Technology (An Autonomous Institute) Mumbai, Pursuing Mechanical Engineering `
+    ` Thakur College of Engineering & Technology (An Autonomous Institute) Mumbai, Currently Pursuing Mechanical Engineering `
     
 ***
    
