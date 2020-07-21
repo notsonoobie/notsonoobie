@@ -1,16 +1,80 @@
-### Hi there 👋
+<img src="https://leverageedu.com/blog/wp-content/uploads/2019/07/Career-Software-Engineer.png" width="100%" alt="snsjnsj" />
 
-<!--
-**notsonoobie/notsonoobie** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+# Hi there, I am Rahul Gupta - A Full Stack Web Developer :wave:
 
-Here are some ideas to get you started:
+Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web Developer currently learning and building new stuffs. I am pursuing Mechanical Engineering from TCET,Mumbai but dedicated to work as a Full Stack Web Developer/Software Developer. I am up-to-date with modern and modular architectures like `REST`, `GraphQL`, `7-1 Pattern`, `DRY Methodology`, `BEM Principles` and much more, followed for Maintainability, Scalability, and Efficient Handling of codes and **I am Prepared to be hired**.
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## Goals for 2020-2021 : 
+
+I will be improving my MERN Stack and DS/Algorithm Skills. Planning to get placed before the year end. Also, I will be focusing partly on my B.tech degree. Planning to build a good portfolio website using Gatsby.js framework or maybe with MERN Stack with blogging and Newsletter subscription feature. 
+
+### Languages :
+
+  + HTML
+  + CSS
+  + Javascript (ES6+)
+  + Python 3.7+
+  + PHP 7.2+
+  + C/C++
+
+### Databases : 
+  
+  + SQL/MYSQL
+  + NO-SQL/MongoDB
+  + Redis
+  
+### Libraries/Frameworks :
+  
+   + React.JS
+   + Gatsby.js
+   + Node.js
+   + Express.js
+   + jQuery
+   + Bootstrap
+   + SASS/SCSS
+   
+### Tools :
+
+  + Git/Github
+  + Postman
+  + Webpack
+  + Rest API
+  + GraphQL
+  + Anaconda
+  + Linux
+  + JSON/Ajax
+  + Netlify/Vercel
+  
+### STACK :
+ 
+  + MERN Stack
+  + JAM Stack
+  
+***
+### Education : 
+
+  + **SCHOOL** : 
+      
+    ` Little Flower High School, Thane - 82% `
+    
+  + **SECONDARY EDUCATION** :
+    
+    ` Seth. N.K.T.T. Junior College of Science and Commerce, Thane - 80% `
+    
+  + **University/B.Tech** :
+
+    ` Thakur College of Engineering & Technology (An Autonomous Institute) Mumbai, Pursuing Mechanical Engineering `
+    
+***
+   
+## Contact Me
+
+:phone: +91-89288-85199
+
+:e-mail: swastikmedical74@gmail.com
+
+:globe_with_meridians: http://showcasingmyself.netlify.com
+
+:octocat: [notsonoobie](https://github.com/notsonoobie)
+
+![twitter](http://i.imgur.com/wWzX9uB.png) [notsonoobie](https://twitter.com/notsonoobie)
