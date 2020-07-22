@@ -2,7 +2,7 @@
 
 # Hi there, I am Rahul Gupta - A Full Stack Web Developer :wave:
 
-Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web Developer currently learning and building new stuffs. I am pursuing Mechanical Engineering from TCET,Mumbai but dedicated to work as a Full Stack Web Developer/Software Developer. I am up-to-date with modern and modular architectures like `REST`, `GraphQL`, `7-1 Pattern`, `DRY Methodology`, `BEM Principles` and much more, followed for Maintainability, Scalability, and Efficient Handling of codes and **I am Prepared to be hired**.
+Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web Developer currently learning and building new stuffs. I am pursuing Mechanical Engineering from TCET,Mumbai but fully dedicated to work as a Full Stack Web Developer/Software Developer. I am up-to-date with modern and modular architectures like `MVC`, `REST`, `GraphQL`, `7-1 Pattern`, `DRY Methodology`, `BEM Principles` and much more, followed for Maintainability, Scalability, and Efficient Handling of codes and **I am Prepared to be hired**.
 
 ## Goals for 2020-2021 : 
 
@@ -32,6 +32,7 @@ I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to g
    + jQuery
    + Bootstrap
    + SASS/SCSS
+   + Axios
    
 ### Tools :
 
