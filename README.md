@@ -41,6 +41,7 @@ I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to g
   + Webpack
   + Rest API
   + GraphQL
+  + Contentful/HeadlessCMS
   + Anaconda
   + Linux
   + JSON/Ajax
