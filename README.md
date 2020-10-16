@@ -73,7 +73,7 @@ I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to g
 
 :phone: +91-89288-85199
 
-:e-mail: swastikmedical74@gmail.com
+:e-mail: notsonoobiee@gmail.com
 
 :globe_with_meridians: http://showcasingmyself.netlify.com
 
