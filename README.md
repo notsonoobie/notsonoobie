@@ -1,4 +1,4 @@
-<img src="https://leverageedu.com/blog/wp-content/uploads/2019/07/Career-Software-Engineer.png" width="100%" alt="snsjnsj" />
+<img src="https://res.cloudinary.com/practicaldev/image/fetch/s--xq8xxUmL--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://external-preview.redd.it/x7vVnP3L75Wh4ApmXedKjze9b7ZuH5h7oW-4xbHMiHQ.jpg%3Fauto%3Dwebp%26s%3Db7d6873eed8c442bb685a083b3b4bfff6dd009ac" width="100%" alt="MERN Stack" />
 
 # Hi there, I am Rahul Gupta - A Full Stack Web Developer :wave:
 
@@ -7,6 +7,7 @@ Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web 
 ## Goals for 2020-2021 : 
 
 I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to get placed before the year end. Also, I will be focusing partly on my B.tech degree. Planning to build a good portfolio website using ` Gatsby.js framework ` or maybe with ` MERN Stack ` with blogging and Newsletter subscription feature. 
+
 
 ### Languages :
 
