@@ -1,4 +1,4 @@
-<img src="https://res.cloudinary.com/practicaldev/image/fetch/s--xq8xxUmL--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://external-preview.redd.it/x7vVnP3L75Wh4ApmXedKjze9b7ZuH5h7oW-4xbHMiHQ.jpg%3Fauto%3Dwebp%26s%3Db7d6873eed8c442bb685a083b3b4bfff6dd009ac" width="100%" alt="MERN Stack" />
+<img src="https://media-exp1.licdn.com/dms/image/C4E16AQHTxT1HgapkPw/profile-displaybackgroundimage-shrink_200_800/0/1606035527656?e=1613606400&v=beta&t=DtQiejIKkRr8mGUzzLS3EdO8qIwlwHf0UF80xta6sQY" width="100%" alt="MERN Stack" />
 
 # Hi there, I am Rahul Gupta - A Full Stack Web Developer :wave:
 
