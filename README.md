@@ -4,11 +4,6 @@
 
 Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web Developer currently learning and building new stuffs. I am pursuing Mechanical Engineering from TCET,Mumbai but fully dedicated to work as a Full Stack Web Developer/Software Developer. I am up-to-date with modern and modular architectures like `MVC`, `REST`, `GraphQL`, `7-1 Pattern`, `DRY Methodology`, `BEM Principles` and much more, followed for Maintainability, Scalability, and Efficient Handling of codes and **I am Prepared to be hired**.
 
-## Goals for 2020-2021 : 
-
-I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to get placed before the year end. Also, I will be focusing partly on my B.tech degree. Planning to build a good portfolio website using ` Gatsby.js framework ` or maybe with ` MERN Stack ` with blogging and Newsletter subscription feature. 
-
-
 ### Languages :
 
   + HTML
@@ -17,7 +12,7 @@ I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to g
   + Python 3.7+
   + PHP 7.2+
   + C/C++
-
+  
 ### Databases : 
   
   + SQL/MYSQL
@@ -30,14 +25,17 @@ I will be improving my ` MERN Stack ` and ` DS/Algorithm Skills `. Planning to g
    + Gatsby.js
    + Node.js
    + Express.js
+   + Nest.js
    + jQuery
    + Bootstrap
-   + SASS/SCSS
+   + SASS/SCSS/Tailwind
    + Axios
    
 ### Tools :
 
   + Git/Github
+  + AWS
+  + Firebase
   + Postman
   + Webpack
   + Rest API
