@@ -22,9 +22,11 @@ Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web 
 ### Libraries/Frameworks :
   
    + React.JS
+   + Redux.js
    + Gatsby.js
    + Node.js
    + Express.js
+   + Nest.js
    + Nest.js
    + jQuery
    + Bootstrap
