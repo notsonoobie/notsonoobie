@@ -1,4 +1,4 @@
-<img src="https://media-exp1.licdn.com/dms/image/C4E16AQHTxT1HgapkPw/profile-displaybackgroundimage-shrink_200_800/0/1606035527656?e=1613606400&v=beta&t=DtQiejIKkRr8mGUzzLS3EdO8qIwlwHf0UF80xta6sQY" width="100%" alt="MERN Stack" />
+<img src="https://res.cloudinary.com/dc8hv5zlq/image/upload/v1618168536/bio_yll795.jpg" width="100%" alt="MERN Stack" />
 
 # Hi there, I am Rahul Gupta - A Full Stack Web Developer :wave:
 
