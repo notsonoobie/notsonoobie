@@ -53,23 +53,6 @@ Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web 
  
   + MERN Stack
   + JAM Stack
-  
-***
-### Education : 
-
-  + **SCHOOL** : 
-      
-    ` Little Flower High School, Thane - 82% `
-    
-  + **SECONDARY EDUCATION** :
-    
-    ` Seth. N.K.T.T. Junior College of Science and Commerce, Thane - 80% `
-    
-  + **University/B.Tech** :
-
-    ` Thakur College of Engineering & Technology (An Autonomous Institute) Mumbai, Currently Pursuing Mechanical Engineering `
-    
-***
    
 ## Contact Me
 
