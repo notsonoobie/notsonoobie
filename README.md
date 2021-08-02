@@ -1,13 +1,13 @@
 <img src="https://res.cloudinary.com/dc8hv5zlq/image/upload/v1618168536/bio_yll795.jpg" width="100%" alt="MERN Stack" />
 
-# Hi there, I am Rahul Gupta - A Full Stack Web Developer :wave:
+# Hi there, I am Rahul Gupta - Full Stack Web Developer :wave:
 
-Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web Developer currently learning and building new stuffs. I am pursuing Mechanical Engineering from TCET,Mumbai but fully dedicated to work as a Full Stack Web Developer/Software Developer. I am up-to-date with modern and modular architectures like `MVC`, `REST`, `GraphQL`, `7-1 Pattern`, `DRY Methodology`, `BEM Principles`, `Microservices` and much more, followed for Maintainability, Scalability, and Efficient Handling of codes and **I am Prepared to be hired**.
+Hey! I am a self taught Full Stack Web Developer. Pursuing Mechanical Engineering from TCET,Mumbai but fully dedicated to work as a Software Developer.
 
 ### Languages :
 
   + HTML
-  + CSS
+  + (S)CSS
   + Javascript (ES6+)
   + Python 3.7+
   + PHP 7.2+
