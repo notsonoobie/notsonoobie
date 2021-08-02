@@ -39,14 +39,12 @@ Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web 
   + AWS
   + Firebase
   + Web Sockets
-  + Postman
   + Webpack
   + Rest API
   + GraphQL
   + Contentful/HeadlessCMS
   + Anaconda
   + Linux
-  + JSON/Ajax
   + Netlify/Vercel
   
 ### STACK :
@@ -60,7 +58,7 @@ Hey! It's me, Rahul but you can call me Noob. I am a self taught Full Stack Web 
 
 :e-mail: notsonoobiee@gmail.com
 
-:globe_with_meridians: http://showcasingmyself.netlify.com
+:globe_with_meridians: https://showcasingmyself.netlify.com
 
 :octocat: [notsonoobie](https://github.com/notsonoobie)
 
