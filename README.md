@@ -25,6 +25,9 @@
 ![Raspberry Pi](https://img.shields.io/badge/-RaspberryPi-C51A4A?style=for-the-badge&logo=Raspberry-Pi)
 
 ![Elastic Cloud](https://img.shields.io/badge/elastic-294492?style=for-the-badge&logo=elastic)
+![Open Telemetry](https://img.shields.io/badge/opentelemetry-yellow?style=for-the-badge&logo=opentelemetry)
+![Prometheus](https://img.shields.io/badge/prometheus-black?style=for-the-badge&logo=prometheus)
+![Grafana](https://img.shields.io/badge/grafana-black?style=for-the-badge&logo=grafana)
 
 
 ---
