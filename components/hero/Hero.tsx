@@ -5,8 +5,10 @@ import { motion } from "framer-motion";
 import { ArrowDown } from "lucide-react";
 import { ServiceMesh } from "./ServiceMesh";
 import { profile } from "@/lib/data";
+import { smoothScrollTo, useLenis } from "@/components/motion/LenisProvider";
 
 export function Hero() {
+  const lenis = useLenis();
   return (
     <section
       id="hero"
@@ -101,23 +103,8 @@ export function Hero() {
             transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="relative aspect-square w-full max-w-[560px] mx-auto lg:max-w-none lg:w-full lg:h-[min(72vh,640px)] lg:aspect-auto"
           >
-            {/* Frame */}
-            <div aria-hidden className="absolute -top-2 -left-2 size-5 border-l border-t border-cyan/50" />
-            <div aria-hidden className="absolute -top-2 -right-2 size-5 border-r border-t border-cyan/50" />
-            <div aria-hidden className="absolute -bottom-2 -left-2 size-5 border-l border-b border-cyan/50" />
-            <div aria-hidden className="absolute -bottom-2 -right-2 size-5 border-r border-b border-cyan/50" />
-
-            {/* Frame meta label */}
-            <div className="absolute -top-6 left-0 right-0 flex items-center justify-between font-mono text-[10px] tracking-[0.25em] uppercase text-ink-faint">
-              <span>// system.graph</span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-1 rounded-full bg-cyan" />
-                live
-              </span>
-            </div>
-
             {/* Mesh container */}
-            <div className="relative h-full w-full rounded-2xl overflow-hidden hairline bg-canvas/30">
+            <div className="relative h-full w-full overflow-hidden">
               <ServiceMesh />
             </div>
           </motion.div>
@@ -127,6 +114,10 @@ export function Hero() {
       {/* Scroll cue */}
       <motion.a
         href="#stats"
+        onClick={(e) => {
+          e.preventDefault();
+          smoothScrollTo("#stats", lenis);
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 0.9 }}

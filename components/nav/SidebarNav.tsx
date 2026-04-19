@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { sections } from "@/lib/data";
 import { ChevronRight, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { smoothScrollTo, useLenis } from "@/components/motion/LenisProvider";
 
 const ICON_LABEL: Record<string, { text: string; color: string }> = {
   tsx: { text: "TSX", color: "text-cyan" },
@@ -17,6 +18,16 @@ const ICON_LABEL: Record<string, { text: string; color: string }> = {
 export function SidebarNav() {
   const [active, setActive] = useState<string>(sections[0].id);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const lenis = useLenis();
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    smoothScrollTo(`#${id}`, lenis);
+    // update URL hash without re-triggering a native jump
+    if (typeof window !== "undefined") {
+      history.replaceState(null, "", `#${id}`);
+    }
+  };
 
   useEffect(() => {
     const entries = new Map<string, number>();
@@ -65,6 +76,7 @@ export function SidebarNav() {
                 <li key={s.id}>
                   <a
                     href={`#${s.id}`}
+                    onClick={(e) => handleNavClick(e, s.id)}
                     className={cn(
                       "relative flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
                       isActive ? "bg-canvas text-ink" : "text-ink-dim hover:text-ink hover:bg-canvas/60",
@@ -115,7 +127,10 @@ export function SidebarNav() {
                     <li key={s.id}>
                       <a
                         href={`#${s.id}`}
-                        onClick={() => setMobileOpen(false)}
+                        onClick={(e) => {
+                          handleNavClick(e, s.id);
+                          setMobileOpen(false);
+                        }}
                         className={cn(
                           "flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
                           isActive ? "bg-canvas text-ink" : "text-ink-dim hover:text-ink hover:bg-canvas/60",
