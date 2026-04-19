@@ -1,9 +1,9 @@
+import { SidebarNav } from "@/components/nav/SidebarNav";
+import { getAllBlogSummaries } from "@/lib/blogs";
+import { SITE_URL } from "@/lib/seo";
+import { ArrowUpRight, Clock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, Clock } from "lucide-react";
-import { getAllBlogSummaries } from "@/lib/blogs";
-import { SidebarNav } from "@/components/nav/SidebarNav";
-import { SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Writing · Rahul Gupta",
@@ -51,7 +51,7 @@ export default async function BlogsIndexPage() {
         <div aria-hidden className="absolute inset-0 bg-grid bg-grid-fade opacity-30 pointer-events-none" />
         <div className="relative mx-auto max-w-6xl px-6 md:px-10 pt-28 md:pt-36 pb-14 md:pb-20">
           <div className="font-mono text-[11px] tracking-[0.3em] uppercase text-cyan mb-5">
-            // writing / v1
+            {"// writing / v1"}
           </div>
           <h1 className="font-display text-[clamp(2.75rem,7vw,5.5rem)] leading-[0.98] tracking-[-0.025em] font-semibold">
             Notes on building<br />
@@ -81,7 +81,7 @@ export default async function BlogsIndexPage() {
               {featured ? (
                 <Link
                   href={`/blogs/${featured.slug}`}
-                  className="group relative block rounded-2xl hairline bg-canvas-2/40 hover:bg-canvas-2/70 transition-colors p-8 md:p-12 overflow-hidden"
+                  className="group relative block rounded-2xl hairline bg-canvas-2/40 hover:bg-canvas-2/70 transition-colors p-8 md:p-12 overflow-hidden mb-10"
                 >
                   {/* Corner brackets */}
                   <span
@@ -110,7 +110,7 @@ export default async function BlogsIndexPage() {
                           <span className="size-1.5 rounded-full bg-cyan shadow-[0_0_8px_currentColor]" />
                           latest
                         </span>
-                        <span className="h-px w-8 bg-line" />
+                        <span className="h-px w-5 bg-line" />
                         <span className="text-ink-faint">
                           {formatDate(featured.frontmatter.date)}
                         </span>
@@ -152,15 +152,6 @@ export default async function BlogsIndexPage() {
               {/* Rest */}
               {rest.length > 0 && (
                 <>
-                  {featured && (
-                    <div className="mt-16 flex items-center gap-3 font-mono text-[10px] tracking-[0.3em] uppercase text-ink-faint mb-6">
-                      <span className="h-px w-10 bg-line" />
-                      <span>archive</span>
-                      <span className="h-px flex-1 bg-line" />
-                      <span>{rest.length} more</span>
-                    </div>
-                  )}
-
                   <ul
                     className={
                       rest.length === 1

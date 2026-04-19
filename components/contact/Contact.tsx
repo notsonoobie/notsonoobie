@@ -98,7 +98,7 @@ export function Contact() {
                         <span className="relative size-1.5 rounded-full bg-mint shadow-[0_0_8px_currentColor]" />
                       </span>
                       <span className="text-mint">available</span>
-                      <span className="text-ink-faint">· IST · Asia/Kolkata</span>
+                      <span className="text-ink-faint">· IST</span>
                     </div>
                     <div className="mt-2 flex items-baseline gap-3 flex-wrap">
                       <span className="font-display text-xl md:text-2xl font-semibold text-ink leading-tight">
@@ -108,7 +108,7 @@ export function Contact() {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px]">
-                    {["Intro", "Hiring", "Consultation", "Agentic AI"].map((tag) => (
+                    {["Hiring", "Consultation", "Agentic AI"].map((tag) => (
                       <span
                         key={tag}
                         className="px-2 py-0.5 rounded-sm border border-cyan/30 text-cyan/85 bg-cyan/[0.04]"
