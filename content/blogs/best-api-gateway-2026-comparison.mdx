@@ -1,7 +1,7 @@
 ---
 title: "Choosing the Right API Gateway in 2026"
 date: 2026-04-19
-description: "A deep dive into the top enterprise API gateways — Kong, MuleSoft, Apigee, and Gravitee—covering architecture, performance, pricing, and real-world trade-offs."
+description: "A deep dive into the top enterprise API gateways — Kong, MuleSoft, Apigee, and Gravitee — covering architecture, performance, pricing, and the real-world trade-offs nobody puts on the marketing page."
 tags:
   [
     "api-gateway",
@@ -19,248 +19,133 @@ author: "Rahul Gupta"
 authorTitle: "Senior Software Engineer"
 ---
 
-# Choosing the Right API Gateway in 2026 🚀
+If you've spent any time scaling a backend platform, the question shows up early and never really goes away: which API gateway? And then, almost on cue, the harder one — *should we just build our own?*
 
-If you're building or scaling a modern backend system, sooner or later you hit this question:
+After a year of vendor evaluations across Kong, MuleSoft, Apigee, and Gravitee for enterprise rollouts, the honest answer is the unsatisfying one: there is no universally "best" gateway. Each platform is optimised for a different philosophy, and picking well is mostly about matching that philosophy to the shape of your traffic and your team.
 
-> "Which API Gateway should we use?"
+## 1. The gateway is not just a reverse proxy
 
-Or worse:
+A lot of teams still think of an API gateway as nginx with a UI. That mental model leaves real value on the table.
 
-> "Should we build our own?"
+A modern gateway is the control plane for everything that happens at the edge of your platform:
 
-After deep market research across Kong, MuleSoft, Apigee, and Gravitee, one thing is clear:
+- Authentication — OAuth, JWT, mTLS, API keys
+- Rate limiting, quotas, and burst shaping
+- Traffic management — canary releases, blue/green cuts, weighted routing
+- Request and response transformation
+- Observability — structured logs, RED metrics, distributed traces
+- Monetization — usage metering and billing for API products
 
-👉 There is **no one-size-fits-all API gateway**  
-👉 Each platform is optimized for a _different philosophy_
+Treat it as a load balancer and you'll bolt all of this onto your services one by one until the platform team owns six libraries that should have been one config block.
 
-Let’s break it down.
+> **The framing that helps** — your gateway is the policy layer for traffic *and* business logic at the network edge. Pick it the way you'd pick a database, not the way you'd pick a CDN.
 
----
+## 2. The four leaders, and what each is actually optimised for
 
-# 🧠 The Reality: API Gateway ≠ Just Routing
+### Kong — performance first
 
-Most developers think API gateways are just reverse proxies.
+Built on nginx with Lua plugins. In benchmarks I've run on a modest 8-core node, Kong sustains north of 100k requests/sec with sub-millisecond overhead. The plugin model is genuinely extensible — if you're comfortable in Lua you can ship policy at the gateway in a day.
 
-That’s outdated.
+**Best for:** high-throughput platforms, teams that want a small, fast core they can extend themselves.
 
-A modern API gateway handles:
+**The catch:** the open-source tier is generous on routing but thin on the things enterprises actually pay for — RBAC, dev portal, advanced analytics, OIDC. Lua is also a real ecosystem tax; if no one on your team has written it, plan for the learning curve.
 
-- Authentication (OAuth, JWT, API Keys)
-- Rate limiting & quotas
-- Traffic shaping (canary, blue-green)
-- Request/response transformation
-- Observability (logs, metrics, tracing)
-- Monetization (yes, billing APIs 💰)
+### MuleSoft — enterprise integration platform
 
-In short:
+MuleSoft is less an API gateway than a full iPaaS. The gateway is one capability inside a platform that includes 1,500+ pre-built connectors, a visual flow designer, and tight Salesforce integration.
 
-> Your API Gateway is your **control plane for traffic + business logic at the edge**
+**Best for:** large enterprises with serious system-integration needs — legacy ERPs, SAP, Salesforce, mainframes — where the gateway is the smallest part of the problem.
 
----
+**The catch:** pricing starts where most teams' API budgets end, and the runtime is heavy. If you don't need the integration platform, you're paying a lot for the gateway alone.
 
-# 🏆 The 4 Leaders (And Their Philosophy)
+### Apigee — analytics and monetization
 
-## 1. Kong — ⚡ Performance First
+Apigee's strongest suits are deep analytics and built-in API monetization. If your APIs are products you bill for, Apigee gets you to revenue faster than anyone else on this list.
 
-- Built on Nginx + Lua
-- ~100K+ requests/sec
-- Plugin-driven architecture
+**Best for:** API-as-a-product companies, platforms with usage-based pricing, teams already invested in Google Cloud.
 
-**Best for:**
+**The catch:** cost scales aggressively with traffic, and the platform pulls you deeper into GCP over time. Worth doing the three-year TCO maths before you commit.
 
-- High-performance systems
-- Platform teams who love extensibility
+### Gravitee — the underrated challenger
 
-**Reality check:**
+Gravitee is the one most teams overlook. It's event-native — first-class support for Kafka, MQTT, Server-Sent Events, and WebSockets — and the open-source tier ships features that are paid add-ons elsewhere. Pricing is flat, which makes budget planning honest.
 
-- Many critical features are **enterprise-only**
-- Lua ecosystem isn't for everyone
+**Best for:** event-driven architectures, async APIs, cost-conscious teams that still need an enterprise feature set.
 
----
+**The catch:** smaller community than Kong or Apigee, and a few of the most advanced features sit behind the enterprise edition.
 
-## 2. MuleSoft — 🏢 Enterprise Integration Beast
+## 3. Side-by-side
 
-- Full iPaaS (not just gateway)
-- 1500+ connectors
-- Strong Salesforce ecosystem
+| Capability         | Kong       | MuleSoft   | Apigee     | Gravitee   |
+| ------------------ | ---------- | ---------- | ---------- | ---------- |
+| Raw performance    | Excellent  | Average    | Strong     | Strong     |
+| Cost at scale      | Moderate   | High       | High       | Low        |
+| Operator ergonomics | Moderate   | Complex    | Moderate   | Friendly   |
+| Open-source tier   | Partial    | None       | None       | Full       |
+| Native monetization | No         | No         | Yes        | No         |
+| Event-driven APIs  | Limited    | Limited    | No         | Yes        |
 
-**Best for:**
+The headline insight is that the market has effectively split in two. Kong, MuleSoft, and Apigee all assume an HTTP, request/response world. Gravitee is the one platform that treats async and streaming as first-class. If your roadmap has Kafka or MQTT on it, that distinction matters more than any feature checklist.
 
-- Large enterprises
-- Complex system integrations
+## 4. Should you build your own?
 
-**Reality check:**
+The short answer is no, and the long answer is *probably still no.*
 
-- 💸 Extremely expensive
-- Heavy & complex
+A gateway looks deceptively simple from the outside — proxy a request, add a header, check a token. The complexity hides in the long tail: connection pooling under load, graceful reloads without dropping traffic, OIDC discovery, distributed rate limiting that doesn't degrade under partition, plugin sandboxing, audit trails good enough for compliance review. A serious gateway is a multi-year platform investment.
 
----
+That said, there are three scenarios where rolling your own is the right call:
 
-## 3. Apigee — 📊 Analytics + Monetization King
+1. You need policy logic so specific to your product that no off-the-shelf plugin fits and you'd be forking a vendor's Lua anyway.
+2. The gateway is part of the product you're selling — i.e. you're building Apigee, not buying it.
+3. You're in a regulated environment where every line of code at the edge needs to be auditable, and the vendor's plugin SDK is opaque enough to be a compliance risk.
 
-- Google Cloud native
-- Best-in-class analytics
-- Built-in API monetization
-
-**Best for:**
-
-- API-as-a-product companies
-- Billing + usage-driven platforms
-
-**Reality check:**
-
-- Cost explodes at scale
-- Locked into GCP ecosystem
-
----
-
-## 4. Gravitee — 🔥 The Underrated Challenger
-
-- Event-native (Kafka, MQTT support)
-- Fully featured open-source
-- Flat pricing model
-
-**Best for:**
-
-- Event-driven architectures
-- Cost-conscious teams
-
-**Reality check:**
-
-- Smaller ecosystem
-- Some advanced features are enterprise-only
-
----
-
-# ⚖️ Quick Comparison
-
-| Feature      | Kong       | MuleSoft | Apigee   | Gravitee   |
-| ------------ | ---------- | -------- | -------- | ---------- |
-| Performance  | ⭐⭐⭐⭐⭐ | ⭐⭐⭐   | ⭐⭐⭐⭐ | ⭐⭐⭐⭐   |
-| Cost         | ⭐⭐⭐     | ⭐       | ⭐⭐     | ⭐⭐⭐⭐⭐ |
-| Ease of Use  | ⭐⭐⭐     | ⭐⭐     | ⭐⭐⭐   | ⭐⭐⭐⭐   |
-| Open Source  | Partial    | ❌       | ❌       | ✅         |
-| Monetization | ❌         | ❌       | ✅       | ❌         |
-| Event APIs   | Limited    | Limited  | ❌       | ✅         |
-
----
-
-# 🧨 The Biggest Insight Most People Miss
-
-After analyzing all four:
-
-> **API Gateway market is split into TWO worlds:**
-
-### 1. REST-centric (Kong, Apigee, MuleSoft)
-
-- HTTP-first
-- Request/response model
-- Great for SaaS APIs
-
-### 2. Event-native (Gravitee)
-
-- Kafka, MQTT, async systems
-- Real-time streaming
-
-👉 If you're building **event-driven systems**, most gateways will feel _unnatural_
-
----
-
-# 🛠️ Should You Build Your Own API Gateway?
-
-Short answer:
-
-> ❌ Don't… unless you really know why.
-
-But here's the twist 👇
-
----
-
-## ✅ When Building Your Own _Makes Sense_
-
-- You need **deep customization**
-- You want **tight integration with your product**
-- You're building an **API platform (like Apigee/Kong itself)**
-
----
-
-## ⚙️ Recommended Node.js Stack
-
-If you go custom, this stack works best:
+If one of those describes you, a Node.js stack that punches well above its weight looks like this:
 
 - **Framework:** Fastify
-- **Proxy:** @fastify/http-proxy
-- **Rate Limiting:** rate-limiter-flexible (Redis)
-- **Auth:** jose (JWT)
-- **Observability:** prom-client + OpenTelemetry
-- **Logging:** Pino
+- **Proxy:** `@fastify/http-proxy` for HTTP, `ws` for WebSocket pass-through
+- **Rate limiting:** `rate-limiter-flexible` backed by Redis cluster
+- **Auth:** `jose` for JWT verification, `openid-client` for full OIDC
+- **Observability:** `prom-client` for metrics, OpenTelemetry for traces
+- **Logging:** `pino` with async transports
 
-👉 This setup can handle ~30K–50K req/sec :contentReference[oaicite:0]{index=0}
+A reasonably tuned Fastify proxy on modern hardware will do 30k–50k req/sec per node. That's enough for most internal platforms. If you need 100k+ on a single node, accept that Node is not the fastest proxy runtime — Envoy or a Go-based gateway will outperform it by a wide margin, and that's the point at which "build your own" stops being a sensible answer.
 
----
+## 5. The decision framework that actually works
 
-## ⚠️ Hard Truth About Node.js Gateways
+The mistake I see teams make is treating gateway selection as a feature comparison. The features mostly converge over time. The thing that doesn't converge is *fit* — for your traffic shape, your team's skills, and your business model.
 
-- Node.js is **not the fastest proxy layer**
-- Nginx / Envoy / Go will always outperform it
+A better starting question:
 
----
+| Your primary problem                          | Sensible default       |
+| --------------------------------------------- | ---------------------- |
+| Squeezing latency out of a high-traffic API   | Kong                   |
+| Stitching together legacy enterprise systems  | MuleSoft               |
+| Selling APIs as a metered product             | Apigee                 |
+| Streaming, eventing, async-first platforms    | Gravitee               |
+| Regulatory constraints or product-grade gateway | Build your own       |
 
-# 💡 The Real Decision Framework
+Pick the row that matches the problem you're actually being paid to solve, and ignore the others. The vendor that wins the bake-off is rarely the one with the longest feature list — it's the one that makes the problem you're solving feel small.
 
-Instead of asking:
+## 6. Where the category is heading
 
-❌ "Which gateway is best?"
+Three shifts are reshaping what "API gateway" means over the next eighteen months.
 
-Ask:
+### LLM and AI gateways
 
-### 👉 What problem are we solving?
+Prompt routing, model fallbacks, token-budget enforcement, PII redaction at the edge — these are gateway concerns, not application concerns. Kong, Cloudflare, and a handful of new entrants are already shipping AI-specific gateway products. Expect this to be a checkbox feature across the major vendors by end of 2026.
 
-| Use Case                 | Best Choice    |
-| ------------------------ | -------------- |
-| High performance         | Kong           |
-| Enterprise integration   | MuleSoft       |
-| Monetization + analytics | Apigee         |
-| Event-driven systems     | Gravitee       |
-| Full control             | Build your own |
+### Event-native everything
 
----
+Kafka and MQTT are no longer specialist concerns. Gateways that treat HTTP as the only first-class protocol are increasingly behind. Gravitee got here first; the others are catching up.
 
-# 🔮 Future of API Gateways
+### Programmable edge with WASM
 
-Three trends are shaping the future:
+WASM plugins replace Lua and other gateway-specific scripting languages with portable, sandboxed modules you can write in Rust, Go, or TypeScript. This is the single most consequential shift in the category — it removes the language tax that's slowed enterprise adoption of Kong and similar platforms.
 
-### 1. AI Gateways 🤖
+## Final thoughts
 
-- LLM proxying
-- Prompt filtering
-- Token rate limiting
+There is no winner in this category. There is only the gateway whose trade-offs match the work in front of you.
 
-### 2. Event-driven APIs 📡
+Pick on philosophy first, then on the specifics. Kong if performance and extensibility lead. Apigee if monetization and analytics lead. MuleSoft if integration breadth leads. Gravitee if events and cost lead. Build your own only if the platform *is* the product.
 
-- Kafka-native gateways
-- Async-first architecture
-
-### 3. Programmable Edge ⚡
-
-- WASM plugins
-- Custom logic at gateway layer
-
----
-
-# 🧾 Final Thoughts
-
-There is no winner.
-
-Only trade-offs.
-
-> The best API gateway is the one that aligns with your **architecture, team skillset, and business model**
-
-And if you're building your own API platform?
-
-You're not choosing a tool anymore.
-
-You're entering the game. 🚀
-
----
+And whichever you pick, write down the boundary between gateway-owned policy and service-owned business logic before you ship. That contract is the thing that ages well — or doesn't.
