@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ArrowUpRight, Mail, Phone, Download, FileText } from "lucide-react";
-import { profile } from "@/lib/data";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { profile } from "@/lib/data";
+import { motion } from "framer-motion";
+import { ArrowUpRight, Download, Mail, Phone } from "lucide-react";
 
 function LinkedinIcon({ className, strokeWidth = 1.5 }: { className?: string; strokeWidth?: number }) {
   return (
@@ -35,6 +35,102 @@ export function Contact() {
         <div className="mt-14 grid lg:grid-cols-[1fr_380px] gap-10 lg:gap-20">
           {/* Links grid */}
           <div className="grid sm:grid-cols-2 gap-3">
+            {/* Primary CTA — Cal.com booking, spans full width */}
+            <motion.a
+              href={profile.cal}
+              target="_blank"
+              rel="noopener noreferrer"
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.6 }}
+              className="group relative sm:col-span-2 rounded-xl border border-cyan/40 bg-canvas/60 hover:border-cyan/70 transition-all overflow-hidden"
+            >
+              {/* Atmospheric glow blob, intensifies on hover */}
+              <div
+                aria-hidden
+                className="absolute -top-24 -right-24 size-72 rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none blur-3xl"
+                style={{
+                  background:
+                    "radial-gradient(circle, color-mix(in oklab, var(--color-cyan) 60%, transparent) 0%, transparent 65%)",
+                }}
+              />
+              {/* Diagonal cyan tint */}
+              <div
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(135deg, color-mix(in oklab, var(--color-cyan) 7%, transparent) 0%, transparent 55%)",
+                }}
+              />
+              {/* Corner brackets */}
+              <span aria-hidden className="absolute top-0 left-0 size-4 border-l border-t border-cyan/60 rounded-tl-xl pointer-events-none" />
+              <span aria-hidden className="absolute bottom-0 right-0 size-4 border-r border-b border-cyan/60 rounded-br-xl pointer-events-none" />
+
+              <div className="relative flex items-stretch gap-5 p-5 md:p-6">
+                {/* Calendar-page tile */}
+                <motion.div
+                  initial={{ scale: 0.92, opacity: 0 }}
+                  whileInView={{ scale: 1, opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative shrink-0 w-20 h-24 rounded-lg border border-cyan/50 bg-canvas-2 flex flex-col items-center justify-center overflow-hidden"
+                >
+                  {/* Calendar-page top binding strip */}
+                  <span aria-hidden className="absolute top-0 inset-x-0 h-2.5 bg-cyan/80" />
+                  <span aria-hidden className="absolute top-1 left-3 w-1 h-1 rounded-full bg-canvas" />
+                  <span aria-hidden className="absolute top-1 right-3 w-1 h-1 rounded-full bg-canvas" />
+                  <span className="mt-3 font-display text-[2.1rem] font-bold text-cyan leading-none tabular-nums">
+                    15
+                  </span>
+                  <span className="font-mono text-[9px] tracking-[0.3em] text-ink-dim mt-1">
+                    MIN
+                  </span>
+                </motion.div>
+
+                {/* Content column */}
+                <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 font-mono text-[10.5px] tracking-[0.2em] uppercase">
+                      <span className="relative flex size-1.5">
+                        <span className="absolute inset-0 size-1.5 rounded-full bg-mint animate-ping opacity-75" />
+                        <span className="relative size-1.5 rounded-full bg-mint shadow-[0_0_8px_currentColor]" />
+                      </span>
+                      <span className="text-mint">available</span>
+                      <span className="text-ink-faint">· IST · Asia/Kolkata</span>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-3 flex-wrap">
+                      <span className="font-display text-xl md:text-2xl font-semibold text-ink leading-tight">
+                        Let&apos;s talk.
+                      </span>
+                      <span className="text-ink-dim text-[12px] font-mono">cal.com / 15min</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10.5px]">
+                    {["Intro", "Hiring", "Consultation", "Agentic AI"].map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-0.5 rounded-sm border border-cyan/30 text-cyan/85 bg-cyan/[0.04]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Round CTA */}
+                <div className="hidden sm:flex items-center shrink-0">
+                  <div className="size-11 rounded-full border border-cyan/50 grid place-items-center text-cyan group-hover:bg-cyan group-hover:text-canvas group-hover:border-cyan group-hover:shadow-[0_0_24px_-2px_var(--color-cyan)] transition-all duration-300">
+                    <ArrowUpRight
+                      className="size-4 group-hover:rotate-45 transition-transform duration-300"
+                      strokeWidth={2}
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.a>
+
             <ContactLink href={`mailto:${profile.email}`} icon={Mail} label="email" value={profile.email} />
             <ContactLink href={`tel:${profile.phone.replace(/\s+/g, "")}`} icon={Phone} label="phone" value={profile.phone} />
             <ContactLink href={profile.linkedin} icon={LinkedinIcon} label="linkedin" value="/in/rahul-gupta-6a5967188" external />
@@ -54,25 +150,47 @@ export function Contact() {
               <span className="text-cyan">v6y · pdf</span>
             </div>
             <h3 className="mt-3 font-display text-xl font-semibold">Full resume</h3>
-            <p className="mt-2 text-sm text-ink-dim leading-relaxed">
-              Complete work history, tech stack, and product portfolio — formatted for recruiters.
-            </p>
-            <a
-              href={profile.resumePdf}
-              download
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-cyan text-canvas font-medium text-sm py-2.5 px-4 hover:opacity-90 transition-opacity"
+
+            {/* Mini document preview */}
+            <div
+              aria-hidden
+              className="mt-4 rounded-md hairline bg-canvas-2/70 p-4 space-y-1.5"
             >
-              <Download className="size-4" strokeWidth={2} />
-              Download PDF
-            </a>
-            <a
-              href={profile.resumeDocx}
-              download
-              className="mt-2 inline-flex items-center justify-center gap-2 rounded-md hairline text-sm py-2.5 px-4 text-ink-dim hover:text-ink hover:bg-canvas-2 transition-colors"
-            >
-              <FileText className="size-4" strokeWidth={1.5} />
-              Download .docx
-            </a>
+              <div className="h-[3px] w-3/5 bg-cyan/60 rounded-full" />
+              <div className="h-[3px] w-2/5 bg-cyan/25 rounded-full" />
+              <div className="h-px w-full bg-line my-2" />
+              <div className="h-[3px] w-full bg-line rounded-full" />
+              <div className="h-[3px] w-11/12 bg-line rounded-full" />
+              <div className="h-[3px] w-3/4 bg-line rounded-full" />
+              <div className="h-[3px] w-4/5 bg-line rounded-full" />
+              <div className="h-px w-full bg-line my-2" />
+              <div className="h-[3px] w-2/3 bg-line rounded-full" />
+              <div className="h-[3px] w-1/2 bg-line rounded-full" />
+            </div>
+
+            {/* Flexible spacer so downloads anchor to the bottom when card is stretched */}
+            <div className="flex-1 min-h-[1rem]" />
+
+            {/* Download options */}
+            <div className="mt-0">
+              <a
+                href={profile.resumePdf}
+                download
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-cyan text-canvas font-medium text-sm py-2.5 px-4 hover:opacity-90 transition-opacity"
+              >
+                <Download className="size-4" strokeWidth={2} />
+                Download PDF
+              </a>
+            </div>
+
+            {/* Footer meta */}
+            <div className="mt-4 pt-4 border-t border-line flex items-center justify-between font-mono text-[10px] tracking-[0.15em] uppercase text-ink-faint">
+              <span>last updated · apr 2026</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-1 rounded-full bg-mint shadow-[0_0_6px_currentColor]" />
+                current
+              </span>
+            </div>
           </motion.div>
         </div>
 

@@ -9,15 +9,22 @@ export function useLenis() {
   return useContext(LenisContext);
 }
 
-/** Smoothly scroll to an anchor — uses Lenis if available, falls back to native. */
+/** Smoothly scroll to an anchor — uses Lenis if available, falls back to native.
+ *  For hash strings (starting with #) we use getElementById because querySelector
+ *  can't handle IDs starting with a digit (common for auto-slugged headings like
+ *  "1. Process supervision" → id="1-process-supervision"). */
 export function smoothScrollTo(
   target: string | HTMLElement,
   lenis: Lenis | null,
 ) {
-  const el =
-    typeof target === "string"
-      ? document.querySelector<HTMLElement>(target)
-      : target;
+  let el: HTMLElement | null = null;
+  if (typeof target === "string") {
+    el = target.startsWith("#")
+      ? document.getElementById(target.slice(1))
+      : document.querySelector<HTMLElement>(target);
+  } else {
+    el = target;
+  }
   if (!el) return;
   if (lenis) {
     lenis.scrollTo(el, { offset: 0 });

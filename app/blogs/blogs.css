@@ -96,6 +96,24 @@
   color: #7cf0ff;
   text-decoration-color: #7cf0ff;
 }
+/* Any inline icon next to a link (external-link arrow, autolink hash, etc.)
+   stays on the same line and aligned with the text baseline. */
+.blog-prose a > svg,
+.blog-prose a > img,
+.blog-prose a + svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 2px;
+  width: 0.95em;
+  height: 0.95em;
+}
+/* Heading anchor links (rehype-autolink-headings) */
+.blog-prose h2 > a,
+.blog-prose h3 > a,
+.blog-prose h4 > a {
+  color: inherit;
+  text-decoration: none;
+}
 
 /* Lists */
 .blog-prose ul,
@@ -191,39 +209,32 @@
   color: #7cf0ff;
 }
 
-/* Code blocks */
+/* Code blocks — the visual chrome (rounded corners, bg, header) comes from the
+   CodeBlock wrapper component; here we only style the raw pre/code that sits
+   inside it and apply the Shiki dark-theme tokens site-wide. */
 .blog-prose pre {
-  background: #07080b !important;
-  border: 1px solid #1b1f2a;
-  border-radius: 10px;
-  padding: 1.1rem 1.25rem;
+  padding: 1rem 1.2rem;
   overflow-x: auto;
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.85rem;
   line-height: 1.7;
-  position: relative;
-  margin: 1.5rem 0;
-}
-.blog-prose pre::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in oklab, #00e5ff 60%, transparent) 50%,
-    transparent 100%
-  );
 }
 .blog-prose pre code {
   background: transparent;
   border: 0;
   padding: 0;
-  color: #d6dde8;
   font-size: inherit;
+  display: block;
+  min-width: 100%;
+}
+
+/* Force Shiki's dark-theme variant everywhere in the blog prose. */
+.blog-prose pre,
+.blog-prose pre span {
+  color: var(--shiki-dark, #d6dde8);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
 }
 
 /* Tables */
@@ -278,4 +289,53 @@
 .blog-prose ::selection {
   background: color-mix(in oklab, #00e5ff 35%, transparent);
   color: #00131a;
+}
+
+/* ----- Task lists (GFM `- [x]` / `- [ ]`) ----------------------------- */
+.blog-prose .task-list-item,
+.blog-prose ul:has(> li > input[type="checkbox"]) > li {
+  list-style: none;
+  padding-left: 0;
+}
+.blog-prose .task-list-item::marker,
+.blog-prose ul:has(> li > input[type="checkbox"]) > li::marker {
+  content: none;
+}
+.blog-prose input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #242a38;
+  border-radius: 4px;
+  margin-right: 10px;
+  vertical-align: -3px;
+  background: #0d0f15;
+  position: relative;
+  cursor: default;
+}
+.blog-prose input[type="checkbox"]:checked {
+  border-color: #00e5ff;
+  background: color-mix(in oklab, #00e5ff 18%, #0d0f15);
+}
+.blog-prose input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 9px;
+  border-right: 1.6px solid #00e5ff;
+  border-bottom: 1.6px solid #00e5ff;
+  transform: translate(-50%, -55%) rotate(45deg);
+}
+
+/* ----- Strikethrough (GFM `~~text~~`) -------------------------------- */
+.blog-prose del,
+.blog-prose s {
+  color: #4a5163;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, #00e5ff 70%, transparent);
+  text-decoration-thickness: 1.5px;
 }

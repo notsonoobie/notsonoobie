@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { smoothScrollTo, useLenis } from "@/components/motion/LenisProvider";
+import { profile } from "@/lib/data";
 import { motion } from "framer-motion";
 import { ArrowDown } from "lucide-react";
+import { useEffect, useState } from "react";
 import { ServiceMesh } from "./ServiceMesh";
-import { profile } from "@/lib/data";
-import { smoothScrollTo, useLenis } from "@/components/motion/LenisProvider";
 
 export function Hero() {
   const lenis = useLenis();
@@ -88,7 +88,7 @@ export function Hero() {
               transition={{ duration: 0.8, delay: 0.65 }}
               className="mt-8 flex flex-wrap items-center gap-2.5 font-mono text-[11px] text-ink-dim"
             >
-              <Chip>6y experience</Chip>
+              <Chip>6Y Experience</Chip>
               <Chip>BFSI · NBFC · Fintechs</Chip>
               <Chip>Multi-Cloud</Chip>
               <Chip>Agentic AI</Chip>

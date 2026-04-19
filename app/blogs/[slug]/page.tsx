@@ -126,9 +126,11 @@ export default async function BlogPostPage({ params }: PageProps) {
               <div className="size-9 rounded-full hairline grid place-items-center font-mono text-[10px] tracking-[0.2em] text-cyan bg-canvas-2/60">
                 RG
               </div>
-              <div className="font-mono text-[11px] leading-tight">
+              <div className="font-mono text-[11px] leading-snug">
                 <div className="text-ink">{frontmatter.author ?? "Rahul Gupta"}</div>
-                <div className="text-ink-faint">senior software engineer</div>
+                {frontmatter.authorTitle && (
+                  <div className="mt-1 text-ink-faint">{frontmatter.authorTitle}</div>
+                )}
               </div>
             </div>
             <PostShare url={postUrl} title={frontmatter.title} />
@@ -144,7 +146,7 @@ export default async function BlogPostPage({ params }: PageProps) {
               <MDXContent />
             </div>
 
-            <footer className="mt-16 pt-8 border-t border-line">
+            <footer className="mt-16 py-8 border-t border-line">
               <div className="flex flex-wrap items-center justify-between gap-4 font-mono text-[11px] text-ink-dim">
                 <span>— {frontmatter.author ?? "Rahul Gupta"}</span>
                 <PostShare url={postUrl} title={frontmatter.title} />

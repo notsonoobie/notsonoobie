@@ -42,6 +42,7 @@ export const profile = {
   phone: "+91 8928885199",
   linkedin: "https://www.linkedin.com/in/rahul-gupta-6a5967188/",
   github: "https://github.com/notsonoobie",
+  cal: "https://cal.com/agentic-with-rahul-gupta/15min",
   resumePdf: "/Rahul_Gupta_Resume.pdf",
   resumeDocx: "/Rahul_Gupta_Resume.docx",
 };

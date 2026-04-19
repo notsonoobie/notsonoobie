@@ -10,6 +10,7 @@ export type BlogFrontmatter = {
   description: string;
   tags?: string[];
   author?: string;
+  authorTitle?: string;
   draft?: boolean;
 };
 
