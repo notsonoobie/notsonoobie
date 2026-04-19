@@ -1,0 +1,62 @@
+---
+title: "Scaling API gateways to BFSI scale"
+date: 2026-02-14
+description: "Field notes from running a multi-tenant API management platform across 15+ enterprise BFSI and NBFC customers."
+tags: ["api-management", "kubernetes", "bfsi", "distributed-systems"]
+author: "Rahul Gupta"
+---
+
+When the same gateway has to land inside a public cloud for one customer, a private data-centre for another, and a bare-metal RHEL box for a third — and all three run the exact same policies — you start to care about a specific set of problems.
+
+These are the notes I wish I had when we started building Atlas API Manager.
+
+## 1. Your policy chain is your critical path
+
+The policy pipeline — auth, rate limit, transform, cache, analytics — sits in front of every single request. A 3 ms mistake here multiplies across millions of calls a day.
+
+Two things mattered more than any micro-optimisation:
+
+1. **Short-circuit cheap failures first.** `auth` rejects before `rate-limit` even evaluates; `rate-limit` rejects before `transform` allocates buffers. Order matters more than speed of any individual policy.
+2. **Treat policies as plug-ins, not features.** Every new policy had to implement the same contract (`evaluate(ctx) -> Result`) and opt into the pipeline via config, not code. That's how we shipped 25+ policies without the gateway binary becoming a tangled ball.
+
+## 2. Multi-cloud deployment is a distribution problem, not a code problem
+
+The hard part of multi-cloud isn't making the code abstract — it's making the packaging, secrets, observability, and upgrade flows all work the same way regardless of target. For us that meant:
+
+- A single Helm chart with cloud-specific values overlays
+- A vault abstraction that plugs into AWS SM, HashiCorp, OCI native, or a bundled one — never hard-coding the secret backend in application logic
+- Log sinks driven by a connector table, so the SOC integration was the same contract for Splunk, ELK, and a bank's own in-house collector
+
+The goal is simple: if the customer sends us an env, a namespace, and a vault choice, we ship. No bespoke integration work.
+
+## 3. Observability is the product, not the add-on
+
+A gateway that works perfectly but is opaque to its operators will lose every incident call. The difference between "the gateway is slow" and "policy `rate-limit` on upstream `/v1/accounts` is p99=3.4s driven by tenant X" is a full tier of trust.
+
+We invested heavily in:
+
+- Cardinality-aware metrics from day one — tenant × upstream × policy, not a single global bucket
+- Structured access logs with tenant and policy decision trail
+- A workflow manager that could rewind the policy chain for any given request ID, showing every verdict and timing
+
+That saved us on incident calls more times than I can count.
+
+## 4. BFSI means the audit trail is the system
+
+Compliance isn't a feature you tack on. It's a property the system has to have by construction:
+
+- Every config change is versioned, signed, and re-playable
+- RBAC is not optional, and IAM has to support teams, business groups, and approvals
+- SSO must support OIDC, SAML 2.0, and LDAP — because some customers are on one, some on the other, some on both
+
+None of this is exciting. All of it is non-negotiable.
+
+## 5. Invest in the developer portal early
+
+One of the biggest force multipliers was the developer portal — self-serve API catalogue, try-it console, API products, monetisation hooks. Once customers' internal teams could self-onboard, the support load on our team dropped significantly, and customer adoption grew on its own.
+
+It's the single feature I would build earlier if I were starting over.
+
+---
+
+If you're building or scaling an API platform and any of this resonates, I'd love to hear what you've learned. Reach me via the links on the home page.

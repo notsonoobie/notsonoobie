@@ -1,42 +1,52 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { sections } from "@/lib/data";
-import { ChevronRight, Menu, X } from "lucide-react";
+import { Folder, Menu, X, ChevronRight } from "lucide-react";
+import { navGroups, type NavItemIcon } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { smoothScrollTo, useLenis } from "@/components/motion/LenisProvider";
 
-const ICON_LABEL: Record<string, { text: string; color: string }> = {
+const ICON_LABEL: Record<NavItemIcon, { text: string; color: string }> = {
   tsx: { text: "TSX", color: "text-cyan" },
   md: { text: "MD", color: "text-mint" },
+  mdx: { text: "MDX", color: "text-mint" },
   json: { text: "JSON", color: "text-amber" },
   log: { text: "LOG", color: "text-violet" },
   dir: { text: "DIR", color: "text-rose" },
 };
 
 export function SidebarNav() {
-  const [active, setActive] = useState<string>(sections[0].id);
+  const pathname = usePathname();
+  const onHome = pathname === "/";
+  const [activeItem, setActiveItem] = useState<string>("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const lenis = useLenis();
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-    e.preventDefault();
-    smoothScrollTo(`#${id}`, lenis);
-    // update URL hash without re-triggering a native jump
-    if (typeof window !== "undefined") {
-      history.replaceState(null, "", `#${id}`);
-    }
-  };
+  // Active group derived from current route
+  const activeGroup = navGroups.find((g) => {
+    if (g.href === "/") return onHome;
+    return pathname.startsWith(g.href);
+  });
 
+  // Scroll-spy on home — highlight the section currently in view
   useEffect(() => {
+    if (!onHome) {
+      setActiveItem("");
+      return;
+    }
+    const portfolio = navGroups.find((g) => g.id === "portfolio");
+    if (!portfolio) return;
+
     const entries = new Map<string, number>();
     const observer = new IntersectionObserver(
       (items) => {
         items.forEach((entry) => {
           entries.set(entry.target.id, entry.intersectionRatio);
         });
-        let best = active;
+        let best = "";
         let bestRatio = 0;
         entries.forEach((ratio, id) => {
           if (ratio > bestRatio) {
@@ -44,17 +54,106 @@ export function SidebarNav() {
             best = id;
           }
         });
-        if (bestRatio > 0) setActive(best);
+        if (bestRatio > 0) setActiveItem(best);
       },
       { threshold: [0.25, 0.5, 0.75] },
     );
-    sections.forEach((s) => {
-      const el = document.getElementById(s.id);
+    portfolio.items.forEach((item) => {
+      const el = document.getElementById(item.id);
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onHome]);
+
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    if (!onHome) {
+      window.location.href = `/#${id}`;
+      return;
+    }
+    smoothScrollTo(`#${id}`, lenis);
+    if (typeof window !== "undefined") {
+      history.replaceState(null, "", `#${id}`);
+    }
+  };
+
+  const renderGroups = (closeOnNav?: () => void) => (
+    <ul className="space-y-3">
+      {navGroups.map((group) => {
+        const isActiveGroup = activeGroup?.id === group.id;
+        return (
+          <li key={group.id}>
+            {/* Folder header — clickable link */}
+            <Link
+              href={group.href}
+              onClick={closeOnNav}
+              className={cn(
+                "group flex items-center gap-1.5 font-mono text-[12px] tracking-tight py-1 px-1 rounded transition-colors",
+                isActiveGroup
+                  ? "text-cyan"
+                  : "text-ink hover:text-cyan",
+              )}
+            >
+              <Folder
+                className={cn(
+                  "size-3.5 shrink-0 transition-colors",
+                  isActiveGroup ? "text-cyan" : "text-ink-faint group-hover:text-cyan",
+                )}
+                strokeWidth={1.75}
+              />
+              <span>{group.label}</span>
+            </Link>
+
+            {/* Sub-items */}
+            {group.items.length > 0 && (
+              <ul className="mt-1 ml-1.5 pl-2 border-l border-line space-y-0.5">
+                {group.items.map((item) => {
+                  const meta = ICON_LABEL[item.icon];
+                  const isActiveItem = onHome && activeItem === item.id;
+                  return (
+                    <li key={item.id}>
+                      <a
+                        href={`#${item.id}`}
+                        onClick={(e) => {
+                          handleAnchorClick(e, item.id);
+                          closeOnNav?.();
+                        }}
+                        className={cn(
+                          "relative flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors font-mono text-[12px]",
+                          isActiveItem
+                            ? "bg-canvas text-ink"
+                            : "text-ink-dim hover:text-ink hover:bg-canvas/60",
+                        )}
+                      >
+                        {isActiveItem && (
+                          <motion.span
+                            layoutId="nav-pointer"
+                            className="absolute -left-2 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-cyan shadow-[0_0_10px_currentColor]"
+                          />
+                        )}
+                        <span
+                          className={cn(
+                            "text-[9.5px] font-semibold tracking-wider w-9 shrink-0",
+                            meta.color,
+                          )}
+                        >
+                          {meta.text}
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                        {isActiveItem && (
+                          <ChevronRight className="ml-auto size-3 text-cyan" strokeWidth={2} />
+                        )}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   return (
     <>
@@ -64,40 +163,11 @@ export function SidebarNav() {
         className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 z-40 flex-col"
       >
         <div className="rounded-xl hairline bg-canvas-2/60 backdrop-blur-md p-3 font-mono text-[12px] min-w-[220px]">
-          <div className="flex items-center justify-between px-2 pb-2 border-b border-line/80 mb-2">
-            <span className="text-ink-dim">portfolio/</span>
-            <span className="text-ink-faint">v1</span>
+          <div className="flex items-center justify-between px-1 pb-2 border-b border-line/80 mb-3">
+            <span className="text-ink-faint text-[10px] tracking-[0.18em] uppercase">~/rahul</span>
+            <span className="text-ink-faint text-[10px]">v1</span>
           </div>
-          <ul className="space-y-0.5">
-            {sections.map((s) => {
-              const meta = ICON_LABEL[s.icon] ?? ICON_LABEL.tsx;
-              const isActive = active === s.id;
-              return (
-                <li key={s.id}>
-                  <a
-                    href={`#${s.id}`}
-                    onClick={(e) => handleNavClick(e, s.id)}
-                    className={cn(
-                      "relative flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
-                      isActive ? "bg-canvas text-ink" : "text-ink-dim hover:text-ink hover:bg-canvas/60",
-                    )}
-                  >
-                    {isActive && (
-                      <motion.span
-                        layoutId="nav-pointer"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-cyan shadow-[0_0_10px_currentColor]"
-                      />
-                    )}
-                    <span className={cn("text-[9.5px] font-semibold tracking-wider w-9 shrink-0", meta.color)}>
-                      {meta.text}
-                    </span>
-                    <span className="truncate">{s.label}</span>
-                    {isActive && <ChevronRight className="ml-auto size-3 text-cyan" strokeWidth={2} />}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+          {renderGroups()}
         </div>
       </aside>
 
@@ -119,32 +189,11 @@ export function SidebarNav() {
               transition={{ duration: 0.2 }}
               className="absolute right-0 top-12 min-w-[220px] rounded-xl hairline bg-canvas-2/95 backdrop-blur p-3 font-mono text-[12px]"
             >
-              <ul className="space-y-0.5">
-                {sections.map((s) => {
-                  const meta = ICON_LABEL[s.icon] ?? ICON_LABEL.tsx;
-                  const isActive = active === s.id;
-                  return (
-                    <li key={s.id}>
-                      <a
-                        href={`#${s.id}`}
-                        onClick={(e) => {
-                          handleNavClick(e, s.id);
-                          setMobileOpen(false);
-                        }}
-                        className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
-                          isActive ? "bg-canvas text-ink" : "text-ink-dim hover:text-ink hover:bg-canvas/60",
-                        )}
-                      >
-                        <span className={cn("text-[9.5px] font-semibold tracking-wider w-9 shrink-0", meta.color)}>
-                          {meta.text}
-                        </span>
-                        <span>{s.label}</span>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="flex items-center justify-between px-1 pb-2 border-b border-line/80 mb-3">
+                <span className="text-ink-faint text-[10px] tracking-[0.18em] uppercase">~/rahul</span>
+                <span className="text-ink-faint text-[10px]">v1</span>
+              </div>
+              {renderGroups(() => setMobileOpen(false))}
             </motion.div>
           )}
         </AnimatePresence>

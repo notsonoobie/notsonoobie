@@ -317,13 +317,41 @@ export const experience: Role[] = [
   },
 ];
 
-export const sections = [
-  { id: "hero", label: "hero.tsx", icon: "tsx" as const },
-  { id: "stats", label: "stats.tsx", icon: "tsx" as const },
-  { id: "about", label: "about.md", icon: "md" as const },
-  { id: "expertise", label: "expertise.tsx", icon: "tsx" as const },
-  { id: "products", label: "products/", icon: "dir" as const },
-  { id: "skills", label: "skills.json", icon: "json" as const },
-  { id: "experience", label: "experience.log", icon: "log" as const },
-  { id: "contact", label: "contact.tsx", icon: "tsx" as const },
+export type NavItemIcon = "tsx" | "md" | "json" | "log" | "dir" | "mdx";
+
+export type NavItem = {
+  id: string;
+  label: string;
+  icon: NavItemIcon;
+};
+
+export type NavGroup = {
+  id: string;
+  label: string;
+  href: string;
+  items: NavItem[];
+};
+
+export const navGroups: NavGroup[] = [
+  {
+    id: "portfolio",
+    label: "portfolio/",
+    href: "/",
+    items: [
+      { id: "hero", label: "hero.tsx", icon: "tsx" },
+      { id: "stats", label: "stats.tsx", icon: "tsx" },
+      { id: "about", label: "about.md", icon: "md" },
+      { id: "expertise", label: "expertise.tsx", icon: "tsx" },
+      { id: "products", label: "products/", icon: "dir" },
+      { id: "skills", label: "skills.json", icon: "json" },
+      { id: "experience", label: "experience.log", icon: "log" },
+      { id: "contact", label: "contact.tsx", icon: "tsx" },
+    ],
+  },
+  {
+    id: "blogs",
+    label: "blogs/",
+    href: "/blogs",
+    items: [],
+  },
 ];

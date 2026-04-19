@@ -1,0 +1,281 @@
+/* ========================================================================= */
+/*           Blog prose styling — dark cyan editorial aesthetic              */
+/* ========================================================================= */
+
+.blog-prose {
+  color: #d6dde8;
+  font-size: 1.0625rem;
+  line-height: 1.78;
+  letter-spacing: -0.005em;
+}
+
+.blog-prose > * + * {
+  margin-top: 1.25rem;
+}
+
+/* Headings */
+.blog-prose h1,
+.blog-prose h2,
+.blog-prose h3,
+.blog-prose h4 {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  color: #ffffff;
+  letter-spacing: -0.022em;
+  scroll-margin-top: 80px;
+}
+.blog-prose h2 {
+  font-size: clamp(1.45rem, 2.6vw, 1.85rem);
+  font-weight: 600;
+  margin-top: 3rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+  padding-top: 1.75rem;
+  border-top: 1px solid #1b1f2a;
+}
+.blog-prose h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 36px;
+  height: 1px;
+  background: #00e5ff;
+}
+.blog-prose h3 {
+  font-size: 1.18rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  color: #e6e9ef;
+}
+.blog-prose h4 {
+  font-size: 1.02rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  color: #c9d2e3;
+}
+
+/* First paragraph drop cap on the very first element of the post body */
+.blog-prose > p:first-child::first-letter {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  float: left;
+  font-size: 3.4em;
+  line-height: 0.92;
+  font-weight: 700;
+  padding: 0.05em 0.12em 0 0;
+  margin-right: 0.06em;
+  color: #00e5ff;
+  background: linear-gradient(180deg, #00e5ff 0%, #7cf0ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.blog-prose p {
+  color: #c9d2e3;
+}
+
+.blog-prose strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.blog-prose em {
+  color: #e6e9ef;
+}
+
+.blog-prose a {
+  color: #00e5ff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in oklab, #00e5ff 50%, transparent);
+  transition: all 0.18s;
+}
+.blog-prose a:hover {
+  color: #7cf0ff;
+  text-decoration-color: #7cf0ff;
+}
+
+/* Lists */
+.blog-prose ul,
+.blog-prose ol {
+  padding-left: 1.5rem;
+  margin: 1.25rem 0;
+}
+.blog-prose ul li,
+.blog-prose ol li {
+  padding-left: 0.4rem;
+  margin: 0.4rem 0;
+}
+.blog-prose ul li::marker {
+  color: #00e5ff;
+  content: "▸  ";
+  font-weight: 600;
+}
+.blog-prose ol {
+  counter-reset: list;
+  padding-left: 0;
+}
+.blog-prose ol > li {
+  counter-increment: list;
+  list-style: none;
+  position: relative;
+  padding-left: 2.4rem;
+}
+.blog-prose ol > li::before {
+  content: counter(list, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78em;
+  color: #00e5ff;
+  background: color-mix(in oklab, #00e5ff 12%, transparent);
+  border: 1px solid color-mix(in oklab, #00e5ff 35%, transparent);
+  width: 1.85rem;
+  padding: 0.05rem 0;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Blockquote — fancy editorial pull-quote */
+.blog-prose blockquote {
+  position: relative;
+  margin: 2rem 0;
+  padding: 1rem 1.25rem 1rem 1.5rem;
+  border: 1px solid #1b1f2a;
+  border-left: 2px solid #00e5ff;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, #00e5ff 5%, transparent) 0%,
+    transparent 100%
+  );
+  border-radius: 0 8px 8px 0;
+  font-style: normal;
+  color: #e6e9ef;
+}
+.blog-prose blockquote p {
+  margin: 0;
+  color: #e6e9ef;
+}
+.blog-prose blockquote p + p {
+  margin-top: 0.75rem;
+}
+
+/* Horizontal rule */
+.blog-prose hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #242a38 30%,
+    #00e5ff 50%,
+    #242a38 70%,
+    transparent 100%
+  );
+  margin: 3rem 0;
+}
+
+/* Inline code */
+.blog-prose code:not(pre code) {
+  background: color-mix(in oklab, #00e5ff 10%, #0d0f15);
+  border: 1px solid color-mix(in oklab, #00e5ff 25%, #1b1f2a);
+  padding: 0.12em 0.45em;
+  border-radius: 4px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.86em;
+  color: #7cf0ff;
+}
+
+/* Code blocks */
+.blog-prose pre {
+  background: #07080b !important;
+  border: 1px solid #1b1f2a;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  overflow-x: auto;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  position: relative;
+  margin: 1.5rem 0;
+}
+.blog-prose pre::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, #00e5ff 60%, transparent) 50%,
+    transparent 100%
+  );
+}
+.blog-prose pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: #d6dde8;
+  font-size: inherit;
+}
+
+/* Tables */
+.blog-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+  border: 1px solid #1b1f2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.blog-prose th,
+.blog-prose td {
+  padding: 0.65rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid #1b1f2a;
+}
+.blog-prose tr:last-child td {
+  border-bottom: 0;
+}
+.blog-prose th {
+  background: #0d0f15;
+  color: #00e5ff;
+  font-weight: 600;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Image / figure */
+.blog-prose img {
+  border-radius: 8px;
+  border: 1px solid #1b1f2a;
+  margin: 1.5rem auto;
+}
+
+/* KBD */
+.blog-prose kbd {
+  background: #0d0f15;
+  border: 1px solid #242a38;
+  box-shadow: 0 1px 0 #242a38;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.82em;
+  color: #c9d2e3;
+}
+
+/* Selection color */
+.blog-prose ::selection {
+  background: color-mix(in oklab, #00e5ff 35%, transparent);
+  color: #00131a;
+}

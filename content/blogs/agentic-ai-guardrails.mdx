@@ -1,0 +1,67 @@
+---
+title: "Guardrails for agentic AI in production"
+date: 2026-03-10
+description: "What it actually takes to ship LLM agents into a regulated environment — not a demo, an operated platform."
+tags: ["agentic-ai", "llm", "mcp", "rag", "bfsi"]
+author: "Rahul Gupta"
+---
+
+There's a wide gap between "LLM agent demo on a laptop" and "agent running inside a bank's change-management perimeter." Everything in that gap is guardrails.
+
+These are the ones that actually matter once agents start touching real systems.
+
+## Guardrail 1: constrain the tool surface
+
+An agent is only as dangerous as the set of tools you hand it. The single highest-leverage decision is to treat tool registration as a security boundary:
+
+- Every tool has a typed input schema, a typed output schema, and a written contract
+- Tools are scoped to the agent context that needs them — not registered globally
+- "Destructive" tools (write to ServiceNow, execute an Ansible playbook, change a K8s manifest) go through an explicit allow-list, never inferred
+- MCP servers are first-class but still subject to the same scoping — don't let a shared MCP server silently widen an agent's blast radius
+
+## Guardrail 2: memory is a liability
+
+Long-term memory is often treated as a feature to enable. In production it's often a liability to manage:
+
+- What gets written, by whom, at what TTL?
+- Who can read it? Can a different agent session pull another tenant's memories by accident?
+- Is there a kill-switch to purge it?
+
+Two specific patterns helped us:
+
+1. **Short-term memory per run, long-term memory per workspace** — never per user unless you have a real reason. It dramatically narrows the blast radius of poisoned memory.
+2. **Vector store queries always filtered by tenant / workspace** at the index level, not the application level. Don't trust the agent to remember its own scoping.
+
+## Guardrail 3: every decision has an audit trail
+
+If the agent acted, you should be able to answer, after the fact:
+
+- Which model made the decision?
+- Which prompt and tools were available?
+- What context was retrieved from memory / RAG?
+- What did the model return?
+- What action was executed, and what was the result?
+
+This is the hardest one to bolt on later. Design the audit log as a primary output of the agent loop — same tier as the response — not something scraped from structured logs.
+
+## Guardrail 4: humans in the loop, on purpose
+
+HITL ("human-in-the-loop") shouldn't be the default mode for everything; it should be a gate on high-risk actions. The right pattern:
+
+- Classify actions by blast radius (read, suggest, write-contained, write-global)
+- HITL is mandatory for `write-global`
+- Users can approve classes of actions in advance (policy-level HITL), not just one-at-a-time prompts — otherwise it becomes a ceremony and people rubber-stamp
+
+## Guardrail 5: model pluggability is a safety feature
+
+When a provider has an outage, when a new model drops with a price improvement, when a customer says "we need this to run on our own GPUs" — the platform has to handle it without code changes. Every agent should:
+
+- Declare its capability requirements (context window, function-calling style, streaming)
+- Be matched to a provider at request time through a policy — not hard-coded
+- Fall back to an alternative if the primary fails
+
+We shipped Atlas AI Agent Studio with eight provider integrations for exactly this reason — the only way to avoid single-provider lock-in and the only way to keep SLAs honest.
+
+---
+
+Agentic AI is real and operable in production today. The gap between "it works" and "you'd stake a customer on it" is almost entirely about these operational concerns, not about the model itself.
