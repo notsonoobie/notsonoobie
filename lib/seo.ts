@@ -1,4 +1,4 @@
-export const SITE_URL = "https://rahulgupta.dev";
+export const SITE_URL = "https://agenticwithrahul.in";
 export const SITE_NAME = "Rahul Gupta — Portfolio";
 export const SITE_SHORT_NAME = "Rahul Gupta";
 export const SITE_AUTHOR = "Rahul Gupta";
