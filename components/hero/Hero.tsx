@@ -1,0 +1,175 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { ArrowDown } from "lucide-react";
+import { ServiceMesh } from "./ServiceMesh";
+import { profile } from "@/lib/data";
+
+export function Hero() {
+  return (
+    <section
+      id="hero"
+      aria-label="Introduction"
+      className="relative min-h-[100svh] w-full overflow-hidden isolate"
+    >
+      {/* Full-bleed faint dotted grid */}
+      <div aria-hidden className="absolute inset-0 bg-grid bg-grid-fade opacity-40 pointer-events-none" />
+
+      {/* Top meta bar */}
+      <div className="absolute top-0 left-0 right-0 z-20 px-6 md:px-10 pt-6 flex items-center justify-between font-mono text-[11px] text-ink-dim">
+        <div className="flex items-center gap-2">
+          <span className="inline-block size-1.5 rounded-full bg-mint shadow-[0_0_8px_currentColor]" />
+          <span>online · mumbai_in</span>
+        </div>
+        <div className="hidden sm:flex items-center gap-4 opacity-80">
+          <span>region: ap-south-1</span>
+          <span>build: stable</span>
+          <span>latency: 12ms</span>
+        </div>
+        <TimeStamp />
+      </div>
+
+      {/* Monogram */}
+      <div className="absolute top-16 left-6 md:left-10 z-20">
+        <div className="size-9 rounded-md hairline bg-canvas-2/60 backdrop-blur grid place-items-center font-mono text-[11px] tracking-[0.2em] text-cyan">
+          RG
+        </div>
+      </div>
+
+      {/* Main grid: text left, graph right */}
+      <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-10 pt-32 md:pt-40 pb-28">
+        <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-center min-h-[68vh]">
+          {/* Left: text column */}
+          <div className="relative">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="font-mono text-[11px] tracking-[0.3em] text-cyan uppercase"
+            >
+              <span className="opacity-60">$</span>&nbsp;whoami
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.0, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-4 font-display text-[clamp(2.75rem,7vw,5.5rem)] leading-[0.95] tracking-[-0.02em] font-semibold"
+            >
+              {profile.name}
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-5 text-ink-dim text-base md:text-lg max-w-xl"
+            >
+              {profile.title}
+            </motion.p>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.9, delay: 0.45 }}
+              className="mt-8 md:mt-10 font-display text-[clamp(1.25rem,2.3vw,1.75rem)] leading-tight text-ink"
+            >
+              Building distributed systems.
+              <br />
+              <span className="text-cyan text-glow-cyan">Embedding intelligence.</span>
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.65 }}
+              className="mt-8 flex flex-wrap items-center gap-2.5 font-mono text-[11px] text-ink-dim"
+            >
+              <Chip>6y experience</Chip>
+              <Chip>BFSI · NBFC · Fintechs</Chip>
+              <Chip>Multi-Cloud</Chip>
+              <Chip>Agentic AI</Chip>
+              <Chip>Mumbai · IN</Chip>
+            </motion.div>
+          </div>
+
+          {/* Right: framed graph */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="relative aspect-square w-full max-w-[560px] mx-auto lg:max-w-none lg:w-full lg:h-[min(72vh,640px)] lg:aspect-auto"
+          >
+            {/* Frame */}
+            <div aria-hidden className="absolute -top-2 -left-2 size-5 border-l border-t border-cyan/50" />
+            <div aria-hidden className="absolute -top-2 -right-2 size-5 border-r border-t border-cyan/50" />
+            <div aria-hidden className="absolute -bottom-2 -left-2 size-5 border-l border-b border-cyan/50" />
+            <div aria-hidden className="absolute -bottom-2 -right-2 size-5 border-r border-b border-cyan/50" />
+
+            {/* Frame meta label */}
+            <div className="absolute -top-6 left-0 right-0 flex items-center justify-between font-mono text-[10px] tracking-[0.25em] uppercase text-ink-faint">
+              <span>// system.graph</span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-1 rounded-full bg-cyan" />
+                live
+              </span>
+            </div>
+
+            {/* Mesh container */}
+            <div className="relative h-full w-full rounded-2xl overflow-hidden hairline bg-canvas/30">
+              <ServiceMesh />
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Scroll cue */}
+      <motion.a
+        href="#stats"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.9 }}
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 font-mono text-[10px] tracking-[0.3em] text-ink-dim hover:text-cyan transition-colors"
+      >
+        SCROLL
+        <motion.span
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+          className="inline-flex"
+        >
+          <ArrowDown className="size-4" />
+        </motion.span>
+      </motion.a>
+    </section>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="px-2.5 py-1 rounded-sm hairline bg-canvas-2/60 backdrop-blur text-ink-dim">
+      {children}
+    </span>
+  );
+}
+
+function TimeStamp() {
+  const [t, setT] = useState<string>("");
+  useEffect(() => {
+    const fmt = () => {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      setT(`${hh}:${mm}:${ss} UTC+05:30`);
+    };
+    fmt();
+    const i = setInterval(fmt, 1000);
+    return () => clearInterval(i);
+  }, []);
+  return (
+    <div className="font-mono text-[11px] text-ink-dim tabular-nums" suppressHydrationWarning>
+      {t || "··:··:·· UTC+05:30"}
+    </div>
+  );
+}
