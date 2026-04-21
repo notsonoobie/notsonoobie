@@ -1,0 +1,323 @@
+---
+title: "Cursor vs Offset Pagination: What Actually Works at Scale?"
+date: 2026-04-21
+description: "A practical breakdown of offset and cursor pagination, why offset degrades badly on large datasets, where cursor pagination wins, and the edge cases teams forget until their API is under real load."
+tags: ["databases", "api-design", "performance", "distributed-systems"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+Pagination looks trivial right until the dataset gets large, the ordering stops being stable, and your API has to serve real traffic instead of toy examples.
+
+Most teams eventually discover the same thing: **offset pagination is easy to ship, but cursor pagination is what usually survives scale**. That does not mean cursor pagination is automatically better in every case. It means the moment you care about performance consistency, duplicate rows, skipped rows, or infinite scroll under active writes, offset starts showing its limits very quickly.
+
+This post is the practical version of that tradeoff.
+
+## 1. Offset pagination is simple because it lies to you
+
+Offset pagination is the classic pattern:
+
+```sql
+SELECT id, created_at, title
+FROM posts
+ORDER BY created_at DESC
+LIMIT 20 OFFSET 40;
+```
+
+And the API usually looks like:
+
+```http
+GET /posts?page=3&pageSize=20
+```
+
+This is appealing for obvious reasons:
+
+- trivial to understand
+- trivial to implement
+- easy to jump to an arbitrary page
+- convenient for admin dashboards and back-office grids
+
+For small datasets, it works fine. For mostly static datasets, it often works fine longer than people expect.
+
+The problem is that offset pagination makes two assumptions that stop being true at scale:
+
+1. Skipping `N` rows is cheap
+2. The ordered dataset stays stable while users page through it
+
+Neither assumption holds reliably in busy systems.
+
+## 2. Why offset gets slower as the page number rises
+
+Databases do not magically teleport to row 10,000. To satisfy a large offset, the engine often still has to walk past a large number of rows before returning the next slice.
+
+That means page depth directly affects cost:
+
+- page 1 is cheap
+- page 10 is tolerable
+- page 500 starts hurting
+- page 10,000 becomes embarrassing
+
+Even with a good index, large offsets usually mean more scanning, more buffer churn, and less predictable latency.
+
+A query like this is the classic footgun:
+
+```sql
+SELECT id, created_at, total
+FROM orders
+WHERE tenant_id = $1
+ORDER BY created_at DESC
+LIMIT 50 OFFSET 50000;
+```
+
+The API may return only 50 rows, but the database may still spend real work traversing the preceding 50,000. Under enough concurrency, that becomes a waste multiplier.
+
+If a user experience encourages deep pagination and the backend is hot, offset pagination turns into "make the database do more work so the client can pretend pages are cheap."
+
+## 3. Offset breaks under active writes
+
+The more painful problem is correctness drift.
+
+Imagine a client loads page 1 of newest posts:
+
+```text
+Post 100
+Post 99
+Post 98
+...
+Post 81
+```
+
+Then five new posts arrive before the client requests page 2.
+
+Now page 2 with `OFFSET 20` is no longer the next logical slice of what the user originally saw. It is the next slice of a changed dataset. That leads to:
+
+- duplicates across pages
+- skipped records
+- inconsistent scrolling
+
+This is why offset pagination feels fine in staging and weird in production. Staging rarely has concurrent writes constantly reshaping the ordered set.
+
+## 4. Cursor pagination solves the problem by changing the question
+
+Cursor pagination stops asking:
+
+"Skip the first 40 rows and give me the next 20."
+
+It asks:
+
+"Give me the next 20 rows after this known position in the ordered set."
+
+That turns the query into a seek instead of a skip:
+
+```sql
+SELECT id, created_at, title
+FROM posts
+WHERE (created_at, id) < ($1, $2)
+ORDER BY created_at DESC, id DESC
+LIMIT 20;
+```
+
+And the API becomes something like:
+
+```http
+GET /posts?after=eyJjcmVhdGVkQXQiOiIyMDI2LTA0LTIxVDEwOjIwOjMwWiIsImlkIjoiODQ5MjEifQ
+```
+
+That encoded token is the cursor. It represents the last item from the previous page, or more precisely the position after which the next page should continue.
+
+This approach is usually faster because the database can use the sort key to seek directly into the index range it needs instead of discarding rows until it reaches the requested offset.
+
+## 5. The ordering key matters more than the cursor itself
+
+The biggest mistake teams make with cursor pagination is choosing a sort key that is not actually stable or unique.
+
+Bad cursor keys:
+
+- non-unique timestamps by themselves
+- mutable fields like `updated_at` when the sort should be stable
+- rankings that can reorder every refresh
+
+Good cursor keys:
+
+- a monotonically increasing primary key when the business order allows it
+- `(created_at, id)` for time-ordered feeds
+- `(score, id)` if score is the real sort key and `id` is the deterministic tie-breaker
+
+The tie-breaker is not optional. If many rows share the same timestamp and you paginate only by `created_at`, you will get duplicates or gaps.
+
+The general rule is:
+
+```text
+ORDER BY primary_sort DESC, unique_tiebreaker DESC
+WHERE (primary_sort, unique_tiebreaker) < (?, ?)
+```
+
+Your cursor should encode the full ordering boundary, not only the obvious field.
+
+## 6. Cursor pagination is what you want for feeds, timelines, and APIs under load
+
+Cursor pagination usually wins for:
+
+- activity feeds
+- event streams
+- timelines
+- transaction history
+- infinite scroll UIs
+- APIs over large, frequently changing tables
+
+Why?
+
+Because these systems care more about:
+
+- stable continuation
+- predictable latency
+- low database waste
+- correctness under concurrent inserts
+
+That is exactly where offset performs worst.
+
+In these environments, asking for page 173 is rarely a real user need. People want "load more" or "give me the next chunk." Cursor pagination matches that behavior much more naturally.
+
+## 7. Offset still has legitimate uses
+
+Offset pagination is not dead. It is just misused.
+
+It is still reasonable for:
+
+- admin dashboards
+- reporting screens with small or bounded datasets
+- human-oriented UIs where jumping to page 7 genuinely matters
+- ad hoc search results where perfect continuity is less important than arbitrary navigation
+
+If the table is not huge, the query is not hot, and the data is not shifting every second, offset can be the simpler and better tradeoff.
+
+The mistake is taking that convenience-first pattern and deploying it unchanged onto a customer-facing, high-write feed.
+
+## 8. Bidirectional pagination is where the implementation gets real
+
+Most blog posts stop at "use `after`." Real products usually need:
+
+- next page
+- previous page
+- sometimes reverse scrolling
+
+That means your API contract has to be explicit:
+
+```json
+{
+  "items": [...],
+  "pageInfo": {
+    "hasNextPage": true,
+    "hasPreviousPage": true,
+    "startCursor": "...",
+    "endCursor": "..."
+  }
+}
+```
+
+The Relay-style shape exists for a reason. Once clients need forward and backward traversal, pagination metadata becomes part of the product contract.
+
+Implementation detail that matters:
+
+- to fetch the next page, query with the end cursor
+- to fetch the previous page, query in the opposite direction and then reverse the result set before returning it
+
+That part is annoying, but it is still better than pretending offset gives you stable back/forward navigation under write-heavy load.
+
+## 9. Counting is a separate problem
+
+Teams often try to combine cursor pagination with an exact total count and then wonder why the endpoint is expensive again.
+
+Exact counts on large filtered datasets can be costly. Sometimes the count query is more expensive than the page query.
+
+Options that work better in practice:
+
+- return only `hasNextPage`
+- return approximate counts
+- precompute counts asynchronously
+- expose counts only where the UX actually needs them
+
+A feed does not usually need "12,493,224 results." It needs fast continuation.
+
+This is one reason offset pagination remains tempting: page numbers imply counts nicely. Cursor pagination forces you to confront whether the count is actually worth the database work.
+
+## 10. Cursors are not security boundaries, but they should still be opaque
+
+A cursor is not authentication. It should not be trusted on its own. But it should usually be opaque to clients.
+
+Why opaque instead of plain `created_at=...&id=...`?
+
+- gives you freedom to change cursor internals later
+- keeps clients from coupling to implementation details
+- makes accidental misuse less likely
+
+A common pattern is:
+
+```ts
+type CursorPayload = {
+  createdAt: string;
+  id: string;
+};
+
+const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+```
+
+If you want stronger guarantees, sign the cursor payload so clients cannot tamper with it silently.
+
+But keep expectations realistic: the cursor is a position token, not a permission model.
+
+## 11. The index design decides whether your pagination is actually good
+
+Whether you use offset or cursor, the database still needs an index aligned to the filter and sort.
+
+For a multi-tenant query like:
+
+```sql
+SELECT id, created_at, status
+FROM invoices
+WHERE tenant_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 25;
+```
+
+You usually want an index shaped like:
+
+```sql
+CREATE INDEX idx_invoices_tenant_created_id
+ON invoices (tenant_id, created_at DESC, id DESC);
+```
+
+Without that alignment, cursor pagination may still be logically correct but operationally disappointing.
+
+The deeper point is this: pagination strategy and index strategy are the same conversation. Treating them separately is how teams end up "using cursor pagination" while still shipping slow queries.
+
+## 12. What I would choose in practice
+
+If I were designing a new API today:
+
+- for feeds, timelines, histories, and infinite scroll: **cursor**
+- for internal tables with page numbers and shallow navigation: **offset**
+- for anything user-facing and likely to grow: default to **cursor first**
+
+That default matters because migrations are annoying. Changing a public API from page/offset semantics to cursor semantics later is far more painful than starting with the right contract when the product still has room to move.
+
+## 13. The actual answer
+
+So which one works at scale?
+
+For most real production systems with large datasets and ongoing writes, **cursor pagination is what actually works**.
+
+Not because it is fashionable. Because it is better aligned with how databases execute queries and how modern clients consume data.
+
+Offset pagination is still useful, but mostly in contexts where convenience matters more than deep-page performance or strict continuity.
+
+The simplest way to think about it:
+
+- use offset when humans need page numbers
+- use cursor when systems need stable continuation
+
+Once traffic and write volume rise, systems usually win that argument.
+
+---
+
+If an endpoint might become hot, write-heavy, or feed-like, decide the ordering and cursor shape early. Most pagination pain later is not caused by the cursor token itself. It is caused by choosing an unstable sort order and hoping the database will make that someone else’s problem.
