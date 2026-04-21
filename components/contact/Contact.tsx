@@ -68,9 +68,16 @@ export function Contact() {
                     "linear-gradient(135deg, color-mix(in oklab, var(--color-cyan) 7%, transparent) 0%, transparent 55%)",
                 }}
               />
-              {/* Corner brackets */}
-              <span aria-hidden className="absolute top-0 left-0 size-4 border-l border-t border-cyan/60 rounded-tl-xl pointer-events-none" />
-              <span aria-hidden className="absolute bottom-0 right-0 size-4 border-r border-b border-cyan/60 rounded-br-xl pointer-events-none" />
+              {/* Corner brackets — inset slightly and thickened so they read
+                  above the card's own cyan edge instead of merging with it. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute top-1.5 left-1.5 size-5 border-l-2 border-t-2 border-cyan/70 rounded-tl-md"
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute bottom-1.5 right-1.5 size-5 border-r-2 border-b-2 border-cyan/70 group-hover:border-cyan rounded-br-md transition-colors"
+              />
 
               <div className="relative flex flex-col sm:flex-row sm:items-stretch gap-4 sm:gap-5 p-5 md:p-6">
                 {/* Calendar-page tile */}

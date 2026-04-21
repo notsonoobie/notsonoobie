@@ -10,7 +10,7 @@ const BLOGS_DESCRIPTION =
   "Essays on distributed systems, agentic AI, and building enterprise-grade products at BFSI scale.";
 
 export const metadata: Metadata = {
-  title: "Writing · Rahul Gupta",
+  title: "Writing",
   description: BLOGS_DESCRIPTION,
   keywords: [
     "Rahul Gupta blog",
@@ -108,6 +108,17 @@ export default async function BlogsIndexPage() {
                   <span
                     aria-hidden
                     className="absolute -top-px -right-px size-6 border-r border-t border-cyan/50 rounded-tr-2xl pointer-events-none"
+                  />
+
+                  {/* Subtle diagonal hatch — barely-visible texture that
+                      differentiates the featured card from the dotted page bg. */}
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 opacity-[0.045] pointer-events-none"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(45deg, transparent 0, transparent 7px, var(--color-cyan) 7px, var(--color-cyan) 8px)",
+                    }}
                   />
 
                   {/* Tint */}
