@@ -5,15 +5,14 @@ import { getAllBlogSummaries } from "@/lib/blogs";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  const homeSections = ["", "#about", "#expertise", "#products", "#skills", "#experience", "#contact"];
-  const homeEntries = homeSections.map((hash) => ({
-    url: `${SITE_URL}/${hash}`,
+  const home = {
+    url: `${SITE_URL}/`,
     lastModified: now,
     changeFrequency: "monthly" as const,
-    priority: hash === "" ? 1.0 : 0.7,
-  }));
+    priority: 1.0,
+  };
 
-  const blogListEntry = {
+  const blogList = {
     url: `${SITE_URL}/blogs`,
     lastModified: now,
     changeFrequency: "weekly" as const,
@@ -25,8 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: `${SITE_URL}/blogs/${b.slug}`,
     lastModified: new Date(b.frontmatter.date),
     changeFrequency: "yearly" as const,
-    priority: 0.6,
+    priority: 0.7,
   }));
 
-  return [...homeEntries, blogListEntry, ...blogEntries];
+  return [home, blogList, ...blogEntries];
 }

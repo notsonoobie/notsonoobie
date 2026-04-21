@@ -1,21 +1,37 @@
 import { SidebarNav } from "@/components/nav/SidebarNav";
+import { BlogListJsonLd } from "@/components/seo/BlogListJsonLd";
 import { getAllBlogSummaries } from "@/lib/blogs";
 import { SITE_URL } from "@/lib/seo";
 import { ArrowUpRight, Clock } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+const BLOGS_DESCRIPTION =
+  "Essays on distributed systems, agentic AI, and building enterprise-grade products at BFSI scale.";
+
 export const metadata: Metadata = {
   title: "Writing · Rahul Gupta",
-  description:
-    "Essays on distributed systems, agentic AI, and building enterprise-grade products at BFSI scale.",
+  description: BLOGS_DESCRIPTION,
+  keywords: [
+    "Rahul Gupta blog",
+    "distributed systems essays",
+    "agentic AI writing",
+    "API management",
+    "enterprise architecture",
+    "BFSI engineering",
+  ],
   alternates: { canonical: `${SITE_URL}/blogs` },
   openGraph: {
     type: "website",
     url: `${SITE_URL}/blogs`,
     title: "Writing · Rahul Gupta",
-    description:
-      "Essays on distributed systems, agentic AI, and building enterprise-grade products at BFSI scale.",
+    description: BLOGS_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Writing · Rahul Gupta",
+    description: BLOGS_DESCRIPTION,
+    creator: "@notsonoobie",
   },
 };
 
@@ -38,6 +54,7 @@ export default async function BlogsIndexPage() {
   return (
     <>
       <SidebarNav />
+      <BlogListJsonLd posts={posts} />
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-line">
         <div
@@ -105,16 +122,16 @@ export default async function BlogsIndexPage() {
 
                   <div className="relative flex flex-col md:flex-row md:items-start gap-8">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 font-mono text-[10.5px] tracking-[0.25em] uppercase text-cyan mb-4">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[10.5px] tracking-[0.18em] sm:tracking-[0.25em] uppercase text-cyan mb-4">
                         <span className="inline-flex items-center gap-1.5">
                           <span className="size-1.5 rounded-full bg-cyan shadow-[0_0_8px_currentColor]" />
                           latest
                         </span>
-                        <span className="h-px w-5 bg-line" />
+                        <span className="hidden sm:inline-block h-px w-5 bg-line" />
                         <span className="text-ink-faint">
                           {formatDate(featured.frontmatter.date)}
                         </span>
-                        <span className="h-px w-5 bg-line" />
+                        <span className="hidden sm:inline-block h-px w-5 bg-line" />
                         <span className="text-ink-faint inline-flex items-center gap-1.5">
                           <Clock className="size-3" strokeWidth={2} />
                           {featured.readingTime} min
@@ -165,11 +182,11 @@ export default async function BlogsIndexPage() {
                           href={`/blogs/${slug}`}
                           className="group relative block h-full rounded-xl hairline bg-canvas-2/30 hover:bg-canvas-2/70 transition-colors p-6 overflow-hidden"
                         >
-                          <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-3">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pr-8 font-mono text-[10px] tracking-[0.15em] sm:tracking-[0.22em] uppercase text-ink-faint mb-3">
                             <time dateTime={frontmatter.date}>
                               {formatDate(frontmatter.date)}
                             </time>
-                            <span className="h-px w-5 bg-line" />
+                            <span className="hidden sm:inline-block h-px w-5 bg-line" />
                             <span className="inline-flex items-center gap-1 text-ink-dim">
                               <Clock className="size-3" strokeWidth={2} />
                               {readingTime} min

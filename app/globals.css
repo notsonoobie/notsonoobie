@@ -89,6 +89,12 @@
 .marquee-track {
   animation: marquee 40s linear infinite;
 }
+/* Mobile viewports show less content per rotation, so speed up the loop. */
+@media (max-width: 640px) {
+  .marquee-track {
+    animation-duration: 20s;
+  }
+}
 
 /* Edge glow pulse on mesh */
 @keyframes edge-pulse {

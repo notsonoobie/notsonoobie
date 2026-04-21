@@ -1,6 +1,7 @@
 "use client";
 
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getAvailability } from "@/lib/availability";
 import { profile } from "@/lib/data";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Download, Mail, Phone } from "lucide-react";
@@ -25,6 +26,9 @@ function GithubIcon({ className, strokeWidth = 1.5 }: { className?: string; stro
 }
 
 export function Contact() {
+  const availability = getAvailability();
+  const pingColor = availability.accent === "mint" ? "bg-mint" : "bg-amber";
+  const pingText = availability.accent === "mint" ? "text-mint" : "text-amber";
   return (
     <section id="contact" aria-label="Contact information" className="relative py-24 md:py-32 border-t border-line bg-canvas-2/40">
       <div className="mx-auto max-w-7xl px-6 md:px-10">
@@ -68,23 +72,23 @@ export function Contact() {
               <span aria-hidden className="absolute top-0 left-0 size-4 border-l border-t border-cyan/60 rounded-tl-xl pointer-events-none" />
               <span aria-hidden className="absolute bottom-0 right-0 size-4 border-r border-b border-cyan/60 rounded-br-xl pointer-events-none" />
 
-              <div className="relative flex items-stretch gap-5 p-5 md:p-6">
+              <div className="relative flex flex-col sm:flex-row sm:items-stretch gap-4 sm:gap-5 p-5 md:p-6">
                 {/* Calendar-page tile */}
                 <motion.div
                   initial={{ scale: 0.92, opacity: 0 }}
                   whileInView={{ scale: 1, opacity: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="relative shrink-0 w-20 h-24 rounded-lg border border-cyan/50 bg-canvas-2 flex flex-col items-center justify-center overflow-hidden"
+                  className="relative shrink-0 self-start sm:self-auto w-16 h-20 sm:w-20 sm:h-24 rounded-lg border border-cyan/50 bg-canvas-2 flex flex-col items-center justify-center overflow-hidden"
                 >
                   {/* Calendar-page top binding strip */}
-                  <span aria-hidden className="absolute top-0 inset-x-0 h-2.5 bg-cyan/80" />
-                  <span aria-hidden className="absolute top-1 left-3 w-1 h-1 rounded-full bg-canvas" />
-                  <span aria-hidden className="absolute top-1 right-3 w-1 h-1 rounded-full bg-canvas" />
-                  <span className="mt-3 font-display text-[2.1rem] font-bold text-cyan leading-none tabular-nums">
+                  <span aria-hidden className="absolute top-0 inset-x-0 h-2 sm:h-2.5 bg-cyan/80" />
+                  <span aria-hidden className="absolute top-1 left-2.5 sm:left-3 w-1 h-1 rounded-full bg-canvas" />
+                  <span aria-hidden className="absolute top-1 right-2.5 sm:right-3 w-1 h-1 rounded-full bg-canvas" />
+                  <span className="mt-2.5 sm:mt-3 font-display text-[1.65rem] sm:text-[2.1rem] font-bold text-cyan leading-none tabular-nums">
                     15
                   </span>
-                  <span className="font-mono text-[9px] tracking-[0.3em] text-ink-dim mt-1">
+                  <span className="font-mono text-[8.5px] sm:text-[9px] tracking-[0.3em] text-ink-dim mt-0.5 sm:mt-1">
                     MIN
                   </span>
                 </motion.div>
@@ -92,12 +96,12 @@ export function Contact() {
                 {/* Content column */}
                 <div className="flex-1 min-w-0 flex flex-col justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2 font-mono text-[10.5px] tracking-[0.2em] uppercase">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10.5px] tracking-[0.2em] uppercase">
                       <span className="relative flex size-1.5">
-                        <span className="absolute inset-0 size-1.5 rounded-full bg-mint animate-ping opacity-75" />
-                        <span className="relative size-1.5 rounded-full bg-mint shadow-[0_0_8px_currentColor]" />
+                        <span className={`absolute inset-0 size-1.5 rounded-full ${pingColor} animate-ping opacity-75`} />
+                        <span className={`relative size-1.5 rounded-full ${pingColor} shadow-[0_0_8px_currentColor]`} />
                       </span>
-                      <span className="text-mint">available</span>
+                      <span className={pingText}>{availability.availableLabel}</span>
                       <span className="text-ink-faint">· IST</span>
                     </div>
                     <div className="mt-2 flex items-baseline gap-3 flex-wrap">

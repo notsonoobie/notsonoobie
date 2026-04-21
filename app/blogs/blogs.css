@@ -9,6 +9,13 @@
   letter-spacing: -0.005em;
 }
 
+/* Keep long URLs/tokens from pushing the article past the viewport on mobile.
+   Scoped away from pre/code so Shiki tokens keep their horizontal layout. */
+.blog-prose :where(p, li, td, th, a, blockquote) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .blog-prose > * + * {
   margin-top: 1.25rem;
 }
@@ -237,21 +244,33 @@
   text-decoration: var(--shiki-dark-text-decoration);
 }
 
-/* Tables */
+/* Tables — the chrome (border, radius, overflow) lives on the scroll wrapper
+   injected by mdx-components.tsx so wide tables can scroll horizontally
+   within the article column without breaking the rounded corners. */
+.blog-prose .blog-prose-table-wrap {
+  margin: 1.5rem 0;
+  border: 1px solid #1b1f2a;
+  border-radius: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.blog-prose .blog-prose-table-wrap > table {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
 .blog-prose table {
   width: 100%;
   border-collapse: collapse;
   margin: 1.5rem 0;
   font-size: 0.92rem;
-  border: 1px solid #1b1f2a;
-  border-radius: 8px;
-  overflow: hidden;
 }
 .blog-prose th,
 .blog-prose td {
   padding: 0.65rem 0.9rem;
   text-align: left;
   border-bottom: 1px solid #1b1f2a;
+  vertical-align: top;
 }
 .blog-prose tr:last-child td {
   border-bottom: 0;
@@ -264,10 +283,14 @@
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* Image / figure */
 .blog-prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
   border-radius: 8px;
   border: 1px solid #1b1f2a;
   margin: 1.5rem auto;

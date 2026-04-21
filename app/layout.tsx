@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { LenisProvider } from "@/components/motion/LenisProvider";
+import { ScrollToTopOnRoute } from "@/components/motion/ScrollToTopOnRoute";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   SITE_AUTHOR,
@@ -74,6 +75,7 @@ export const metadata: Metadata = {
     title: SITE_TITLE_DEFAULT,
     description: SITE_DESCRIPTION,
     creator: "@notsonoobie",
+    images: [`${SITE_URL}/opengraph-image`],
   },
   robots: {
     index: true,
@@ -124,7 +126,10 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <LenisProvider>{children}</LenisProvider>
+        <LenisProvider>
+          <ScrollToTopOnRoute />
+          {children}
+        </LenisProvider>
         <JsonLd />
         <Analytics />
       </body>

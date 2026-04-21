@@ -36,8 +36,9 @@ export function Timeline() {
                 transition={{ duration: 0.8, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
                 className="relative"
               >
-                {/* Node */}
-                <div className="absolute -left-[22px] md:-left-[46px] top-1.5 size-3.5 rounded-full bg-canvas hairline grid place-items-center">
+                {/* Node — pixel offsets are tuned so the node's center sits on
+                    the vertical rail (rail at left-3 / md:left-6, node size-3.5). */}
+                <div className="absolute -left-[26px] md:-left-[47px] top-1.5 size-3.5 rounded-full bg-canvas hairline grid place-items-center">
                   <span className="size-1.5 rounded-full bg-cyan shadow-[0_0_12px_currentColor]" />
                 </div>
 
