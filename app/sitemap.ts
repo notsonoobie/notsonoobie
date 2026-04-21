@@ -19,6 +19,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.9,
   };
 
+  const resumeEntries: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/resume`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/resume/docx`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${SITE_URL}/resume/json`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+  ];
+
   const blogs = await getAllBlogSummaries();
   const blogEntries = blogs.map((b) => ({
     url: `${SITE_URL}/blogs/${b.slug}`,
@@ -27,5 +33,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [home, blogList, ...blogEntries];
+  return [home, blogList, ...resumeEntries, ...blogEntries];
 }
