@@ -10,6 +10,7 @@ const meta = {
   "service-mesh-overrated": "Service Mesh Is Overrated for Most Teams",
   "finops-cloud-native-right-size": "FinOps for Cloud-Native: Right-Size Before Refactor",
   "best-api-gateway-2026-comparison": "Choosing the Right API Gateway in 2026",
+  "xds-rest-vs-grpc-config-push": "xDS REST and gRPC for Config Push Between Control Plane and Data Plane",
   "event-driven-vs-request-driven-architectures": "Event-Driven vs Request-Driven Architectures: When to Use What",
   "cursor-vs-offset-pagination": "Cursor vs Offset Pagination: What Actually Works at Scale?",
   "nodejs-in-production": "Running Node.js in production",
