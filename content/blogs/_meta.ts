@@ -1,4 +1,5 @@
 const meta = {
+  "building-api-gateway-golang-performance-concurrency": "Building an API Gateway in Go: A Thought Process Focused on Performance and Concurrency",
   "multi-tenant-saas-isolation-patterns": "Multi-Tenant SaaS at Scale: Isolation Beyond RLS",
   "postgres-first-architecture": "The Postgres-First Architecture",
   "kafka-pulsar-nats-2026": "Kafka, Pulsar, NATS JetStream in 2026",
