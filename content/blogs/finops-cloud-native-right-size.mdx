@@ -1,0 +1,332 @@
+---
+title: "FinOps for Cloud-Native: Right-Size Before You Refactor"
+date: 2026-04-22
+description: "Before you refactor for cost, rightsize what you already run. Node packing, idle detection, spot/reserved mix, GPU egress tax, and the cloud-native cost levers that ship savings in a week."
+tags: ["kubernetes", "sre", "performance", "cost-optimization"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+Every FinOps conversation I walk into starts the same way. Someone shows a cloud bill that doubled, and an architect is already sketching a new diagram on the whiteboard. A service mesh is mentioned. A rewrite is implied. A migration is assumed.
+
+Almost none of that is necessary in the first quarter.
+
+The 80% win for most teams is not architectural. It is sitting inside the cluster you already run, hiding in oversized requests, half-empty nodes, zombie load balancers, and workloads that should have been on spot six months ago.
+
+My rule is simple: **rightsize this quarter, refactor next year.**
+
+## 1. Why "refactor first" is almost always the wrong move
+
+Refactoring for cost feels productive because it produces artifacts. New diagrams. New RFCs. New services. Leadership likes it because it looks like change.
+
+The problem is timelines.
+
+- Rightsizing ships savings in **days to weeks**.
+- Architectural refactors ship savings in **quarters to years**.
+- The refactor also carries migration risk, rollback risk, and opportunity cost against product work.
+
+If the bill is bleeding right now, a three-month refactor is not a fix. It is a bet.
+
+There is also a subtler issue. Teams that refactor without rightsizing first tend to carry their old waste into the new architecture. Oversized requests become oversized requests in the new service. Idle replicas become idle replicas in the new cluster. You paid for a migration and kept the inefficiency.
+
+Rightsizing forces you to understand what the workload actually needs. That understanding is what makes a later refactor honest, if you still need one at all.
+
+## 2. Rightsizing is a weekly habit, not a one-time project
+
+The single biggest lever in a Kubernetes cluster is the gap between `requests` and what pods actually consume.
+
+Most workloads I audit look like this:
+
+- CPU requests set to 1 core. p95 CPU usage: 120m.
+- Memory requests set to 2 GiB. p95 memory: 480 MiB.
+- Replicas pinned at 6 because "that is what production needs."
+- Nodes running at 25–35% CPU average.
+
+That gap is pure waste. The scheduler reserves against `requests`, not usage, so the cluster provisions capacity for ghosts.
+
+A sane request-setting pattern looks like this:
+
+```yaml
+# rightsized workload
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-api
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: app
+          image: registry.internal/order-api:1.42.0
+          resources:
+            requests:
+              cpu: "150m"       # observed p95 ~120m, 25% headroom
+              memory: "640Mi"   # observed p95 ~480Mi, 30% headroom
+            limits:
+              cpu: "1"          # burst ceiling, not the common case
+              memory: "1Gi"     # OOMKill boundary, comfortable above p99
+```
+
+Notes from running this pattern at scale:
+
+- Set `requests` from observed p95, not from the number someone typed in 2023.
+- Leave 20–30% headroom over p95, not 10x.
+- Keep `limits` generous on CPU, strict on memory. CPU throttling degrades latency, memory overrun kills pods.
+- Treat Vertical Pod Autoscaler in `recommend` mode as your source of truth. Do not let it mutate pods automatically in prod until you trust its recommendations for two or three weeks.
+
+Make this a weekly ritual. Pull VPA recommendations, diff them against current requests, file PRs for the outliers. Teams that do this once save 20%. Teams that do it weekly stop accumulating waste in the first place.
+
+## 3. Node packing is where compute savings actually live
+
+Rightsizing one pod saves bytes. Packing nodes saves invoices.
+
+The move is to get workloads dense enough that entire nodes can disappear. That means:
+
+- consolidating underutilized nodes
+- letting the autoscaler scale down aggressively
+- tolerating short-lived scheduling pressure in exchange for real savings
+
+Karpenter and modern Cluster Autoscaler can consolidate nodes when a cheaper combination of instance types fits the current pods. The mistake teams make is setting anti-consolidation knobs so conservatively that the feature never fires.
+
+A reasonable default:
+
+- Turn on consolidation.
+- Allow disruption for non-critical workloads with `PodDisruptionBudget` set honestly (not minAvailable = replicas).
+- Use diverse instance types. Locking to a single family makes the autoscaler unable to find cheaper mixes.
+- Prefer larger nodes for bin-packing density. Five large nodes at 75% utilization beat twenty small nodes at 30%.
+
+There is a second dimension people skip: **node cost-per-core**. Graviton, AMD EPYC, and the newer generations are routinely 20–40% cheaper per core than the default your Terraform module picked in 2022. Rebuild your images for ARM where you can. The compiler is ready. Most dependencies are ready. Your bill certainly is.
+
+## 4. Spot and reserved mix is a policy decision, not a technical one
+
+Spot instances and committed-use discounts are the biggest levers after rightsizing. Both are underused because teams treat them as risky, when the real risk is sitting on on-demand pricing for workloads that have been stable for years.
+
+Where spot is safe:
+
+- stateless HTTP services behind a load balancer with multiple replicas
+- batch jobs that are idempotent and checkpointed
+- CI runners, build farms, data processing pipelines
+- background workers that already tolerate restarts
+
+Where spot is not safe:
+
+- single-replica stateful components
+- writers for stateful databases and queues
+- long-running interactive jobs without checkpointing
+- workloads with very long warmup times relative to their useful lifetime
+
+The practical pattern is a tiered node pool:
+
+- **Baseline pool**: reserved instances or savings plans for the always-on core. Size it to p50 load.
+- **Burst pool**: on-demand for the delta between p50 and p90.
+- **Opportunistic pool**: spot for everything stateless above p90 and for batch.
+
+Reserved commitment math is simpler than people fear. If you have been running a workload for a year and will keep running it for another, the one-year commitment almost always pays off. Three-year gets aggressive. Start with one-year, measure, extend selectively.
+
+## 5. Network egress is the invisible tax
+
+Compute gets all the attention. Egress quietly eats 15–30% of the bill in data-heavy architectures.
+
+The patterns that inflate egress:
+
+- Chatty microservices spread across availability zones. Every cross-AZ hop is billed.
+- Central log pipelines pulling from every region to one bucket.
+- Clients in one cloud reading from object storage in another.
+- Unnecessary TLS termination round-trips that re-download large payloads.
+
+The rightsizing version of this work is not "rewrite for locality." It is:
+
+- turn on **topology-aware routing** so services prefer same-AZ endpoints
+- colocate chatty service pairs in the same zone or node pool
+- cache read-heavy object storage behind a same-region CDN or object cache
+- move logging/metrics aggregation to the region where the data is produced
+
+Kafka clusters with cross-AZ replication are often the single largest egress line. That is not waste, it is durability, but make sure it is durability you actually need. A replication factor of 3 across three AZs is expensive. Sometimes RF=3 with rack awareness is fine. Sometimes RF=2 is the correct answer for a non-critical topic.
+
+## 6. GPUs are a different animal
+
+GPU cost is where the rightsizing instinct fails the most, because the defaults are catastrophic.
+
+What I see repeatedly:
+
+- A full A100 allocated to a service that uses 15% of it.
+- GPU pods pinned at one replica, scheduled on on-demand nodes, sitting idle overnight.
+- Inference services that batch one request at a time because the code was ported from a dev notebook.
+
+Levers that actually work:
+
+- **Fractional GPUs.** NVIDIA MIG and time-slicing let multiple pods share one physical GPU. For inference below 40% utilization, this is usually free money.
+- **Spot GPUs.** Batch training and embedding generation can run on spot with checkpointing. Reserve on-demand for interactive workloads only.
+- **Dynamic batching.** Triton, vLLM, and similar runtimes batch concurrent requests. A batched GPU at 80% utilization serves 5x the traffic of an un-batched one.
+- **Off-hours scaling.** If your inference traffic drops 70% overnight, your GPU fleet should too. Scale minimum replicas by time of day.
+
+Model cost itself is a separate discipline, but the infra lever is straightforward: measure tokens-per-second-per-dollar and budget against it. If a cheaper model hits the quality bar for 80% of traffic, route those requests to it and reserve the expensive model for the other 20%.
+
+## 7. Idle detection is where the fastest wins hide
+
+Every cluster has a layer of silent waste that nobody is watching. Finding it takes less than a week and usually pays for the entire FinOps initiative.
+
+Common offenders:
+
+- **Ephemeral namespaces** that were created for a demo in 2024 and never deleted. Still running. Still billing.
+- **Test environments** on autoscale-min of 3 replicas. Nobody uses them on weekends.
+- **Zombie load balancers** pointing at services that no longer exist. One load balancer is cheap. Forty is not.
+- **Orphaned persistent volumes** from deleted pods, still provisioned, still charged.
+- **Snapshots** that accumulate because the retention policy never shipped.
+- **Log streams** and metrics from services that were decommissioned a year ago.
+
+A simple idle scanner goes a long way. Start in bash, then graduate to a scheduled job:
+
+```bash
+# rough-idle-scan.sh: find candidates for deletion
+set -euo pipefail
+
+echo "== namespaces with no active deployments =="
+kubectl get ns -o json \
+  | jq -r '.items[].metadata.name' \
+  | while read ns; do
+      count=$(kubectl -n "$ns" get deploy,sts,ds -o name 2>/dev/null | wc -l)
+      if [ "$count" -eq 0 ]; then echo "empty: $ns"; fi
+    done
+
+echo "== PVCs not bound to any pod =="
+kubectl get pvc -A -o json \
+  | jq -r '.items[] | select(.status.phase=="Bound") |
+           "\(.metadata.namespace)/\(.metadata.name)"' \
+  | while read pvc; do
+      ns="${pvc%/*}"; name="${pvc#*/}"
+      used=$(kubectl -n "$ns" get pod -o json \
+        | jq -r --arg n "$name" '.items[] |
+          select(.spec.volumes[]?.persistentVolumeClaim.claimName==$n) |
+          .metadata.name' | head -1)
+      if [ -z "$used" ]; then echo "orphan pvc: $pvc"; fi
+    done
+
+echo "== LoadBalancers with zero endpoints =="
+kubectl get svc -A -o json \
+  | jq -r '.items[] | select(.spec.type=="LoadBalancer") |
+           "\(.metadata.namespace)/\(.metadata.name)"' \
+  | while read svc; do
+      ns="${svc%/*}"; name="${svc#*/}"
+      eps=$(kubectl -n "$ns" get endpoints "$name" -o json \
+        | jq '[.subsets[]?.addresses[]?] | length')
+      if [ "$eps" = "0" ]; then echo "dead lb: $svc"; fi
+    done
+```
+
+Wrap the output with cost annotations in something scripty, and you have a weekly report. A minimal TypeScript sketch that enriches the raw list with rough unit costs:
+
+```ts
+// idle-cost-report.ts
+import { readFileSync } from "node:fs";
+
+type IdleItem = { kind: "ns" | "pvc" | "lb"; id: string };
+type Priced = IdleItem & { monthlyUsd: number; reason: string };
+
+const PRICES = {
+  pvc_gb_month: 0.1,       // gp3-ish
+  lb_month: 18,            // network LB baseline
+  ns_overhead_month: 5,    // controllers, sidecars, logs
+};
+
+function parseScan(path: string): IdleItem[] {
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .flatMap((line) => {
+      if (line.startsWith("empty: "))      return [{ kind: "ns",  id: line.slice(7) } as IdleItem];
+      if (line.startsWith("orphan pvc: ")) return [{ kind: "pvc", id: line.slice(12) } as IdleItem];
+      if (line.startsWith("dead lb: "))    return [{ kind: "lb",  id: line.slice(9) } as IdleItem];
+      return [];
+    });
+}
+
+function price(items: IdleItem[]): Priced[] {
+  return items.map((it) => {
+    switch (it.kind) {
+      case "ns":  return { ...it, monthlyUsd: PRICES.ns_overhead_month, reason: "empty namespace" };
+      case "pvc": return { ...it, monthlyUsd: 50 * PRICES.pvc_gb_month, reason: "unbound pvc (~50Gi assumed)" };
+      case "lb":  return { ...it, monthlyUsd: PRICES.lb_month,          reason: "lb with no endpoints" };
+    }
+  });
+}
+
+const items  = parseScan(process.argv[2] ?? "scan.txt");
+const priced = price(items).sort((a, b) => b.monthlyUsd - a.monthlyUsd);
+const total  = priced.reduce((s, p) => s + p.monthlyUsd, 0);
+
+for (const p of priced) {
+  console.log(`$${p.monthlyUsd.toFixed(2).padStart(7)}  ${p.kind.padEnd(4)}  ${p.id}  (${p.reason})`);
+}
+console.log(`-------\n$${total.toFixed(2)} total monthly idle spend`);
+```
+
+This is deliberately crude. The point is that a two-hour script beats a six-month FinOps platform purchase, because it produces a list of things you can delete on Friday.
+
+## 8. Common offenders and typical quick wins
+
+A rough map of what I keep finding, in order of effort-to-savings ratio:
+
+| Common offender                               | Quick win                                         | Typical savings |
+|-----------------------------------------------|---------------------------------------------------|-----------------|
+| Oversized CPU/memory requests                 | VPA recommend, drop to p95 + 25% headroom         | 20–35%          |
+| Underpacked nodes                             | Enable consolidation, diversify instance types    | 15–25%          |
+| 100% on-demand compute                        | Tiered pools: reserved + on-demand + spot         | 25–40%          |
+| Cross-AZ chatter                              | Topology-aware routing, same-AZ colocation        | 10–20% (egress) |
+| Idle non-prod environments overnight          | Scale-to-zero on schedule                         | 30–50% (non-prod)|
+| Orphan PVCs, dead LBs, ghost namespaces       | Weekly idle scanner + delete PR                   | 5–10%           |
+| Full GPUs for low-utilization inference       | MIG/time-slicing + dynamic batching               | 40–70% (GPU)    |
+| Unbounded Kafka retention                     | Per-topic retention tuned to actual consumer lag  | 10–20% (storage)|
+| Log verbosity at DEBUG in prod                | Sampling + level discipline                       | 10–15% (logs)   |
+| Snapshots/backups without lifecycle policy    | Retention policy, cold tier for old snapshots     | 5–10% (storage) |
+
+Stack three or four of these and the total is rarely under 40%, which is more than most refactors deliver and ships in weeks, not quarters.
+
+## 9. Unit economics: make cost a first-class metric
+
+The teams that keep cost under control long-term do one thing the rest do not: they track cost as a service-level metric, not as a finance report.
+
+The metrics that matter:
+
+- **cost per tenant** for multi-tenant SaaS
+- **cost per request** for API-shaped products
+- **cost per model invocation** for AI features
+- **cost per GB ingested** for data platforms
+- **cost per active user** for consumer products
+
+These numbers belong on the same dashboards as latency and error rate. When a deploy regresses cost per request by 30%, that is a release incident, not a quarterly review item.
+
+The mechanics are boring but crucial. Tag every resource with `team`, `service`, `environment`, and `tenant_class`. Pipe billing data into your data warehouse. Join it against request counts from your APM. Publish the ratios weekly. The moment an engineer can see "my service costs $0.0014 per request, up from $0.0009 last month," behavior changes without anyone being told to care.
+
+## 10. When you actually do need to refactor
+
+All of the above works until it doesn't. There is a class of cost problems where rightsizing has diminishing returns and architecture is the real lever:
+
+- **Cross-AZ chatter baked into the service graph.** If service A calls B calls C calls D and each hop crosses AZs, topology-aware routing helps but does not fix the shape. The fix is to collapse hot paths into fewer services or to introduce locality-aware partitioning.
+- **Over-replicated caches.** Dozens of service-level caches, each duplicating the same data, each with its own eviction profile. A shared cache tier or read-through pattern beats per-service hoarding.
+- **Kafka retention that does not match consumer behavior.** Seven-day retention on every topic is lazy. Some topics need 24 hours. Some need 30 days. The default is almost never correct.
+- **Sidecar overhead at high pod counts.** Every sidecar adds CPU and memory overhead. At a few thousand pods, a shared data-plane model can materially change the bill. The mesh-vs-no-mesh question belongs in its own post, but the cost dimension is real.
+- **Monolithic batch jobs that cannot parallelize onto spot.** Break them into checkpointed steps and the whole workload moves to the cheap tier.
+
+These are real refactors. They are worth doing. They are also almost always worth doing **after** rightsizing, because the metrics you need to justify them come from the observability you built during rightsizing.
+
+## 11. How I would run a FinOps quarter
+
+If I were dropped into a team tomorrow with a mandate to cut cloud spend, this is the order I would run:
+
+1. **Week 1:** Turn on VPA in recommend mode. Deploy the idle scanner. Tag everything. Get cost per service onto a dashboard.
+2. **Week 2:** Right-size the top 20 services by spend. Delete obvious idle resources. Enable node consolidation.
+3. **Week 3:** Introduce a spot pool for stateless and batch. Move non-prod to scale-to-zero overnight.
+4. **Week 4:** Buy one-year reserved capacity for the stable baseline. Tune Kafka retention. Cut log verbosity.
+5. **Weeks 5–8:** Ship unit-economic dashboards. Start topology-aware routing. Migrate GPU inference to fractional/batched.
+6. **Weeks 9–12:** Review. Identify the 2–3 genuine architectural refactors the data now justifies. File RFCs for next quarter.
+
+Most of the savings land in weeks 1–4. The rest is hardening so the savings do not erode.
+
+## 12. The rule
+
+Cloud-native cost discipline is not a heroic architecture effort. It is a weekly habit of looking at what is actually running, questioning whether it should be, and deleting or resizing what should not.
+
+Architecture refactors are real tools, but they are expensive ones. The honest sequence is: measure, rightsize, pack, shift to spot, kill idle, track unit economics, and only then refactor the shape of the system.
+
+Rightsize this quarter. Refactor next year. In that order, the bill drops before the rewrite ships, and the rewrite (if you still need it) is grounded in numbers instead of vibes.

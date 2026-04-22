@@ -1,0 +1,339 @@
+---
+title: "Vibe Coding Explained"
+date: 2026-04-21
+description: "What people mean by vibe coding, why it works surprisingly well for some phases of software development, where it fails hard, and how to use it without turning your codebase into an archaeological site."
+tags: ["ai", "software-engineering", "developer-tools", "productivity"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+Vibe coding is what happens when a developer stops specifying every step up front and starts steering by intent instead.
+
+You describe what you want in plain language, let an AI generate structure, code, tests, or refactors, and then keep nudging it until the system feels right. Less blueprint. More feedback loop.
+
+That sounds unserious at first. In practice, it is already a real working style for a lot of engineers. The problem is that the phrase gets used for two very different things:
+
+1. **High-leverage prototyping** where AI helps you move faster through obvious implementation work
+2. **Unaccountable code generation** where nobody can explain why the system works, only that it seemed fine in the chat
+
+Those are not the same thing. One is a tool. The other is a liability.
+
+## 1. What vibe coding actually is
+
+At its core, vibe coding is an iterative loop:
+
+1. State the outcome you want
+2. Let the model produce a first version
+3. Run it, inspect it, critique it
+4. Tighten the prompt or edit the code directly
+5. Repeat until the result is good enough
+
+The emphasis shifts from manually typing every line to **directing, validating, and refining**.
+
+A typical vibe-coding prompt looks something like:
+
+```text
+Build a dashboard page for API analytics.
+Use the existing design tokens.
+Show request rate, p95 latency, and error rate.
+Make mobile behavior deliberate, not just stacked.
+```
+
+That prompt is not a spec. It is a steering command. The model fills in a lot of blanks, and the engineer decides whether those blanks were filled intelligently or lazily.
+
+## 2. Why it feels so effective
+
+Vibe coding works because modern software has a large amount of **compressible work**:
+
+- boilerplate UI scaffolding
+- CRUD endpoints
+- API clients
+- repetitive data transformations
+- test skeletons
+- migration scripts
+- first-draft documentation
+
+This is the kind of work where the hardest part is often not invention. It is momentum.
+
+AI is very good at giving you a plausible starting point quickly. That matters because getting from zero to something visible is often the most expensive cognitive step in a project.
+
+For certain tasks, vibe coding feels almost unfairly productive:
+
+- standing up a new feature spike
+- converting a rough idea into a demo
+- exploring alternative UI directions
+- translating an existing pattern into another part of the codebase
+- writing the first 70% of a utility that a human can then harden
+
+This is why some teams swear by it. The speedup is real.
+
+## 3. Where vibe coding breaks
+
+The failure mode is simple: the model is fluent enough to produce confidence without understanding.
+
+That leads to code which is:
+
+- plausible but subtly wrong
+- internally inconsistent
+- over-abstracted for no reason
+- under-tested around the exact edge cases that matter
+- full of cargo-cult patterns copied from the statistical average of public code
+
+The biggest risk is not bad syntax. It is **false comprehension**.
+
+If a developer cannot answer basic questions like these, the code is not production-ready:
+
+- Why does this abstraction exist?
+- What are the invariants?
+- What happens on partial failure?
+- Why is this query shaped this way?
+- What are the concurrency assumptions?
+- What test would catch the bug we are most likely to ship?
+
+If the answer is "the AI wrote it that way," that is not an explanation. It is an admission.
+
+## 4. The right mental model: AI as a fast junior with infinite stamina
+
+This analogy is imperfect, but useful.
+
+An AI coding assistant can:
+
+- generate lots of code quickly
+- mirror patterns it sees nearby
+- respond well to specific constraints
+- revise work without getting tired
+
+It cannot reliably:
+
+- own system design tradeoffs end to end
+- protect architectural coherence by default
+- understand business nuance unless you make it explicit
+- know which 5% of the codebase is politically or operationally dangerous
+
+That means vibe coding is strongest when the human owns:
+
+- the architecture
+- the acceptance bar
+- the edge cases
+- the final review
+
+And the model owns:
+
+- draft generation
+- option generation
+- repetitive transformation
+- exploratory implementation
+
+Used that way, the model is a multiplier. Used the other way, it is a mess amplifier.
+
+## 5. Vibe coding is not the same as prompt-only development
+
+This is where a lot of people get confused.
+
+There are at least three distinct operating modes:
+
+### Prompt-only
+
+You ask for code, paste it somewhere, and hope.
+
+This is the weakest mode. It works for toy tasks and fails badly as complexity rises.
+
+### Guided generation
+
+You prompt, inspect, rerun, edit, compare, and constrain the result.
+
+This is the useful middle ground. Most serious AI-assisted coding today fits here.
+
+### Agentic workflow
+
+You give the system a goal, let it inspect the repo, modify files, run tests, and iterate with tools.
+
+This is stronger than basic vibe coding because the model is operating against actual project context instead of a vacuum. It is also riskier if you stop reviewing outputs critically.
+
+When people say "I vibe coded this feature," they usually mean guided generation or an agentic workflow, not blind prompt-only output.
+
+## 6. Where vibe coding shines
+
+I would actively choose this workflow for:
+
+- greenfield UI work
+- internal tools
+- admin dashboards
+- one-off scripts
+- prototype APIs
+- test generation from known behavior
+- refactors with clear before/after constraints
+- transforming data models or schemas in repetitive ways
+
+Why these?
+
+Because the cost of a mediocre first draft is low, and the benefit of fast iteration is high.
+
+A lot of software work is bottlenecked by "I know roughly what I want, but I do not want to hand-build the first pass." That is exactly the environment where vibe coding pays for itself.
+
+## 7. Where it needs adult supervision
+
+There are domains where vibe coding can still help, but only under tighter control:
+
+- authentication and authorization
+- financial calculations
+- distributed coordination
+- infrastructure automation
+- data migrations
+- performance-critical hot paths
+- security-sensitive input handling
+
+In these areas, the issue is not whether AI can generate code. It can.
+
+The issue is that these systems contain hidden assumptions and expensive failure modes. A superficially correct implementation can still be disastrously wrong.
+
+For example:
+
+- a race condition only appears under load
+- a retry loop duplicates financial operations
+- an auth shortcut leaks tenant data
+- a migration script works on staging and corrupts production shape assumptions
+
+These are not "typo" problems. They are reasoning problems. That is where human review has to get much stricter.
+
+## 8. How to vibe code without degrading the codebase
+
+This is the part that matters most.
+
+If you want the speed benefits without long-term damage, keep these rules:
+
+### Rule 1: Always anchor to existing patterns
+
+Ask the model to follow the repo, not invent a framework inside it.
+
+Good prompt:
+
+```text
+Add a blog post using the existing content/blogs format and mirror the frontmatter structure of current posts.
+```
+
+Bad prompt:
+
+```text
+Create the best possible blog system for this repository.
+```
+
+The second prompt invites unnecessary novelty. Most codebases do not need novelty. They need coherence.
+
+### Rule 2: Make constraints explicit
+
+Tell the model what not to do:
+
+- do not add new dependencies
+- reuse existing components
+- preserve public API shape
+- keep the diff minimal
+- avoid `useMemo` unless already used in the file
+
+AI performs much better when the guardrails are concrete.
+
+### Rule 3: Inspect the diff, not just the output
+
+A rendered screen can look correct while the underlying implementation is absurd.
+
+Read the diff for:
+
+- invented abstractions
+- duplicated logic
+- dead code
+- naming drift
+- hidden behavior changes
+- broad edits unrelated to the request
+
+If the diff feels like it wandered, it probably did.
+
+### Rule 4: Run the real checks
+
+If the code matters, run:
+
+- tests
+- type-checks
+- lints
+- relevant local workflows
+- spot performance checks when appropriate
+
+Vibe coding without validation is just autocomplete with better marketing.
+
+### Rule 5: Collapse or delete speculative complexity
+
+Models often add "future-proofing" that nobody asked for:
+
+- generic wrappers
+- configuration layers
+- helper factories
+- interface hierarchies
+- reusable hooks that are only used once
+
+Delete these aggressively. The model does not pay the maintenance cost. Your team does.
+
+## 9. Prompting patterns that actually help
+
+The best prompts usually include four things:
+
+1. The outcome
+2. The constraints
+3. The local context
+4. The acceptance criteria
+
+For example:
+
+```text
+Add a new blog post called "Vibe Coding Explained" in the existing Next.js repo.
+Use the current MDX blog format under content/blogs and update any metadata needed.
+Keep the tone technical and pragmatic, similar to the other posts.
+Do not change layout components or blog infrastructure.
+```
+
+That is dramatically better than:
+
+```text
+Write a cool article about AI coding.
+```
+
+The more concrete your constraints, the less cleanup you do later.
+
+## 10. The management trap
+
+One thing worth saying clearly: vibe coding can make individual contributors faster, but it can also tempt organizations into sloppy expectations.
+
+Bad management takeaway:
+
+"If AI writes code now, we can cut review time and reduce engineering rigor."
+
+Correct takeaway:
+
+"If AI removes low-value manual work, engineers can spend more time on architecture, correctness, and product judgment."
+
+If leadership only notices the typing-speed gain and not the review burden, the codebase quality will decline in a very predictable way.
+
+You cannot automate away accountability.
+
+## 11. My current rule of thumb
+
+I trust vibe coding most for:
+
+- getting unstuck
+- generating a serious first draft
+- exploring options quickly
+- handling repetitive implementation work
+
+I trust it least for:
+
+- final design decisions
+- correctness in high-stakes domains
+- anything where nobody is prepared to read the generated code carefully
+
+That is the practical boundary.
+
+Vibe coding is not fake, and it is not magic. It is just a new interaction model for software development: less line-by-line authorship, more iterative direction.
+
+The developers who benefit most from it are not the ones who blindly accept outputs. They are the ones with enough taste and enough technical judgment to reject most of what should be rejected quickly.
+
+---
+
+If you use AI coding tools regularly, the useful question is not "Does vibe coding work?" It clearly does for some classes of work. The better question is "Which parts of software development can I accelerate this way without outsourcing the parts that still require engineering judgment?"

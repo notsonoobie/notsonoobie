@@ -1,0 +1,270 @@
+---
+title: "Multi-Tenant SaaS at Scale: Isolation Patterns Beyond Row-Level Security"
+date: 2026-04-22
+description: "Row-level security alone does not cut it once tenants demand isolation around performance, data residency, and blast radius. A guide to silo, pool, and bridge models — and when each earns its cost."
+tags: ["architecture", "multi-tenancy", "databases", "security"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+Most multi-tenant designs I review start the same way. Someone enables row-level security, adds a `tenant_id` column, wires it into a policy, and ships. Six months later a large tenant complains about slow dashboards, a mid-size tenant wants data residency in a specific region, and the security team wants evidence that tenant A cannot ever read tenant B's data under any failure mode.
+
+Row-level security was never the answer to any of those questions.
+
+RLS is a useful feature. It is not a tenancy strategy. Tenancy is a spectrum that runs from fully pooled to fully siloed, and the right point on that spectrum is chosen by blast-radius requirements, not by how convenient your database makes filter predicates.
+
+This post is the mental model I actually use when I sit down to design a multi-tenant platform. The three models, where RLS quietly breaks, the operational taxes, and how the cell pattern lets you scale past a single database without tearing everything up again.
+
+## 1. What multi-tenancy actually has to guarantee
+
+Before we argue about pool versus silo, it helps to be honest about what "isolation" has to mean.
+
+A multi-tenant platform has to guarantee, at minimum:
+
+- tenant A never reads tenant B's data, ever, under any bug or regression
+- one tenant cannot starve others of CPU, memory, connections, or IO
+- compliance scopes (data residency, encryption keys, audit boundaries) are respected per tenant
+- an incident in one tenant's data or workload does not cascade to the rest
+- backups and restores can be done per tenant without touching others
+- the platform can prove all of the above in an audit
+
+RLS addresses the first bullet. Partially. On a good day.
+
+Everything else is a deployment and infrastructure problem.
+
+## 2. The three models: pool, bridge, silo
+
+I break the spectrum into three buckets. Other people call them shared, hybrid, and dedicated. Same idea.
+
+| Model  | Shape                                    | Tenants per resource | Isolation strength |
+|--------|------------------------------------------|----------------------|--------------------|
+| Pool   | One database, one schema, shared tables  | Many                 | Logical only       |
+| Bridge | One database, schema or table per tenant | Many                 | Medium             |
+| Silo   | Dedicated stack per tenant               | One                  | Strong             |
+
+Pool is cheap and dense. Silo is expensive and safe. Bridge lives in between and is usually the least understood.
+
+None of the three is the right answer for every tenant. A mature platform usually runs all three at the same time, applied to different tenant tiers.
+
+## 3. Pool: when it is actually correct
+
+Pool is the right default when:
+
+- tenants are small and numerous
+- per-tenant traffic is relatively uniform
+- compliance does not force separation
+- you can enforce isolation at the query and infrastructure layer without breaking a sweat
+
+Small self-serve SaaS at the bottom of the pricing page is almost always pool. That is fine. It should be.
+
+Pool gives you density, fast onboarding, and one thing to operate. It fails when tenants diverge. One tenant ingests 50x the volume of the median. One tenant triggers a query plan that pins a CPU. One tenant wants their data in Frankfurt and nowhere else. None of those problems are solved by adding more RLS policies.
+
+## 4. Bridge: the one people underestimate
+
+Bridge is where a lot of SaaS ends up once the long tail of tenants gets uncomfortable.
+
+Common bridge shapes:
+
+- one schema per tenant inside one Postgres cluster
+- one table-per-tenant pattern inside a shared schema
+- one logical database per tenant inside a shared instance
+- one Kafka topic per tenant on a shared broker
+- one S3 prefix per tenant inside a shared bucket with per-prefix IAM
+
+Bridge gives you partial isolation without paying the full cost of dedicated infrastructure. Backups, retention, quotas, and access policies can be applied per tenant without a full split. The physical resources are still shared, so noisy neighbors still exist, but the blast radius of a schema corruption or a bad migration is much smaller.
+
+Bridge is usually the right answer for your mid-tier customers. They are big enough to want isolation guarantees, not big enough to justify a dedicated cell.
+
+## 5. Silo: the ones you cannot afford to get wrong
+
+Silo is a dedicated stack per tenant. Dedicated database, dedicated queue, dedicated cache, often a dedicated network boundary.
+
+You reach for silo when:
+
+- the tenant has regulatory obligations that forbid shared infrastructure
+- the tenant is large enough that their load profile would destabilize a shared cluster
+- the contract specifies a dedicated environment, dedicated keys, or a per-tenant SLA
+- a single tenant's outage cannot be allowed to affect any other tenant
+
+Silo is the expensive option. It is also the only honest answer for the top tier. The mistake I see is pretending silo is avoidable by piling more RLS policies and connection-level tenant scoping onto a pool. It is not.
+
+If the contract says dedicated, the architecture has to be dedicated. Paperwork does not enforce isolation. Infrastructure does.
+
+## 6. Where RLS quietly breaks in a pool
+
+RLS is easy to demo and hard to operate. Here are the places I have seen it fail in production.
+
+**Connection pooling.** Pgbouncer in transaction-pooling mode reuses physical connections across sessions. If you set tenant context with a `SET` that lives on the session, the next transaction on the same physical connection inherits it. The fix is to use `SET LOCAL` inside every transaction and set it on the right statement, every time. One forgotten codepath and a user sees another tenant's data. I have seen this bug survive code review three times.
+
+```sql
+-- wrong: SET persists on the pooled connection
+SET app.tenant_id = 'tenant_a';
+SELECT * FROM invoices;
+
+-- right: SET LOCAL is scoped to the current transaction
+BEGIN;
+SET LOCAL app.tenant_id = 'tenant_a';
+SELECT * FROM invoices;
+COMMIT;
+```
+
+**Noisy neighbors.** RLS is a predicate. It does not give one tenant fewer IOPS. A single tenant running a bad report still pins a CPU core and slows every other tenant in the same database.
+
+**Plan pollution.** Query plans in a shared database are influenced by statistics across all tenants. A whale tenant skews statistics, and a plan that was fast for small tenants turns into a sequential scan. RLS does not help.
+
+**Backup and restore.** Restoring a single tenant out of a shared Postgres backup is operationally painful. You usually end up restoring the whole cluster into a sandbox and extracting the rows. On a good day. On a bad day during an incident, this is not what you want to discover.
+
+**Egress bandwidth.** One tenant with a bulk export can saturate the network pipe on a shared instance. RLS has nothing to say about that.
+
+**Audit evidence.** A SOC 2 auditor wants evidence that tenant data is isolated. "We use RLS" is a policy, not evidence. You still have to show query logs, access controls, key separation, and proof that the isolation holds under failure. Most of that is easier when tenants live in separate schemas or separate databases.
+
+RLS is a belt. It is not a pair of trousers.
+
+## 7. Per-tenant keys and data residency
+
+Once enterprise tenants show up, two requirements always follow: their data sits in their region, and their data is encrypted with a key only they control.
+
+Per-tenant keys are straightforward in principle. Each tenant has a data encryption key wrapped by a key encryption key in KMS. The KEK lives in a region the tenant approves. Sensitive columns are encrypted application-side before they hit the database.
+
+```ts
+// envelope encryption, per tenant
+const dek = await kms.decrypt({
+  tenantId,
+  wrappedKey: tenant.wrappedDek,
+  keyArn: tenant.kekArn, // region-scoped
+});
+
+const ciphertext = aesGcmEncrypt(dek, plaintext, {
+  aad: `${tenantId}:${tableName}:${columnName}`,
+});
+```
+
+The hard part is not the encryption. The hard part is:
+
+- key rotation without downtime
+- revocation when a tenant leaves
+- recovery when a KMS region is unreachable
+- making sure no cache, replica, or warehouse copy of the data escapes the tenant's region
+
+Data residency is not only about where the primary database sits. It is about where every copy of the data sits. Read replicas, cache entries, analytics warehouses, search indexes, logs, error traces, backups, and every intermediate queue. One careless tracing pipeline that forwards a payload to a centralized observability stack can invalidate the entire residency promise.
+
+Pool with RLS cannot enforce residency. Bridge can, if each tenant's schema or database sits on a region-scoped cluster. Silo enforces it naturally because every piece of infrastructure is already per-tenant.
+
+## 8. Per-tenant rate limits and quotas
+
+Tenant isolation in the data plane is only half the job. The request plane has to isolate too.
+
+A pool model without per-tenant quotas always ends the same way. A noisy tenant consumes the connection pool, the background worker budget, and the queue depth. Every other tenant slows down. Your dashboard shows healthy averages while half the customer base is unhappy.
+
+Per-tenant quotas worth enforcing:
+
+- requests per second at the edge
+- concurrent requests in-flight
+- database connections
+- queue depth per tenant
+- worker slots per tenant
+- storage and egress budgets
+
+Rate limiting has to happen at the gateway. Concurrency limits have to happen in the service. Queue isolation has to happen in the broker. None of these is one config flag. All of them have to be designed in.
+
+A rough sketch of a per-tenant quota record:
+
+```yaml
+tenant: tenant_9
+tier: enterprise
+limits:
+  http_rps: 2000
+  concurrent_requests: 400
+  db_connections: 60
+  queue_depth: 50000
+  worker_slots: 32
+  monthly_egress_gb: 5000
+  monthly_storage_gb: 2000
+residency:
+  primary_region: ap-south-1
+  allowed_regions: [ap-south-1]
+keys:
+  kek_arn: arn:aws:kms:ap-south-1:...:key/...
+  rotation_days: 90
+```
+
+When I see a multi-tenant platform without a record like this per tenant, I assume isolation is aspirational.
+
+## 9. Cells: when one database is not enough
+
+Once the platform grows past a certain size, a single shared database becomes the bottleneck no matter how careful the RLS is. The usual answer is cells.
+
+A cell is a complete, self-contained copy of the stack that serves a subset of tenants. Cell 1 serves tenants 1 through 500. Cell 2 serves tenants 501 through 1000. Each cell has its own database, queue, cache, and workers. Tenants are routed to their cell at the edge.
+
+```text
+                       +--------------------+
+request --> router --> | cell 1 (app + db)  |
+                       +--------------------+
+                       | cell 2 (app + db)  |
+                       +--------------------+
+                       | cell N (app + db)  |
+                       +--------------------+
+```
+
+What cells buy you:
+
+- a blast radius that stops at the cell boundary
+- per-cell deploys and migrations
+- per-cell scaling
+- independent failure domains
+- natural fit for regional residency (cell per region)
+- easier chaos and canary patterns
+
+The router is the only globally shared component, and it should be boring. A tiny stateless service that reads tenant-to-cell mapping from a small, replicated store. That is it.
+
+Cells compose with the pool-bridge-silo model. Inside a cell, small tenants can still live in a shared pool, mid-tier tenants live in bridge schemas, and a VIP tenant can occupy its own cell outright as a silo. The cell is the container. The isolation model is the content.
+
+## 10. The operational tax each model imposes
+
+Every model has an honest cost. Teams usually underestimate the ones they have not lived through.
+
+| Concern              | Pool                        | Bridge                       | Silo + Cells                |
+|----------------------|-----------------------------|------------------------------|-----------------------------|
+| Onboarding cost      | trivial                     | cheap                        | expensive                   |
+| Migration cost       | one migration, many rows    | N schema migrations          | N independent rollouts      |
+| Per-tenant backup    | painful                     | straightforward              | native                      |
+| Noisy neighbor risk  | high                        | medium                       | none                        |
+| Cost per tenant      | low                         | medium                       | high                        |
+| Audit evidence       | weak                        | medium                       | strong                      |
+| Blast radius         | platform-wide               | cluster-wide                 | cell-wide                   |
+| Observability        | one pane, noisy             | needs per-tenant labels      | needs per-cell rollup       |
+
+The mistake is choosing the model based on cost alone. Pool looks cheap until the first incident that takes every tenant down because of one tenant's query. Silo looks expensive until the first enterprise contract requires it and you already have the pattern working.
+
+## 11. Mapping tiers to models
+
+This is the shape I keep landing on. It is not the only shape, but it is the one that holds up under contract reviews and incident reviews both.
+
+- free and low-tier self-serve tenants: pool inside a regional cell, RLS enforced, per-tenant quotas at the gateway
+- mid-tier paying tenants: bridge with schema-per-tenant inside a cell, per-tenant backups, region pinning
+- enterprise tenants: silo, dedicated cell, dedicated keys, dedicated backups, contractual SLAs
+- regulated tenants: silo in a regulated cell, in-region KMS, in-region observability pipeline, sealed from the rest of the platform
+
+Tenants move between tiers. The architecture has to allow a tenant to be lifted from the pool to a bridge schema, and from a bridge schema to a dedicated cell, without a rewrite. That means the data access layer has to be tenant-routing-aware from day one. Every query goes through a resolver that knows where this tenant's data lives. Changing the answer from "shared schema" to "dedicated cluster" should be a config change, not a refactor.
+
+## 12. Things I would build on day one
+
+If I were starting a multi-tenant platform today, these are the non-negotiables I would put in before any feature work:
+
+- a `tenantId` on every request, propagated through every log line, every trace span, every event
+- a tenant router service with a small, boring data store
+- per-tenant quota records and a gateway that enforces them
+- per-tenant audit logs with an immutable append-only store
+- a test suite that asserts tenant A cannot read tenant B's data under every failure mode the team can imagine
+- a migration framework that can target one tenant, one cell, or the whole fleet
+- a backup and restore path that works per tenant, tested quarterly
+
+Without those, any isolation story is a slide deck.
+
+## 13. The takeaway
+
+Multi-tenant isolation is not a feature you turn on. It is a property of the architecture. RLS is one small mechanism inside a much bigger system that has to deal with performance isolation, residency, keys, quotas, backups, and blast radius.
+
+The honest question to ask on day one is not "how do I filter by `tenant_id`." It is "what happens to tenant B when tenant A has the worst day of their year." If the answer is "nothing, because the blast radius stops at their cell," the architecture is probably fine. If the answer involves hope, the architecture is not.
+
+Pick the isolation model per tier, not per platform. Build the router and the quota system early. Treat residency and keys as first-class constraints, not features you retrofit. And stop treating row-level security as a substitute for architecture. It was never meant to carry that weight.
