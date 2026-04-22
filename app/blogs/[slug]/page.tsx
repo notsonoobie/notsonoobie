@@ -29,9 +29,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const blog = await readBlog(slug);
   if (!blog) return {};
   const url = `${SITE_URL}/blogs/${slug}`;
+  const modified = blog.frontmatter.updated ?? blog.frontmatter.date;
   return {
     title: blog.frontmatter.title,
     description: blog.frontmatter.description,
+    keywords: blog.frontmatter.tags,
     authors: [{ name: blog.frontmatter.author ?? "Rahul Gupta" }],
     alternates: { canonical: url },
     openGraph: {
@@ -40,6 +42,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: blog.frontmatter.title,
       description: blog.frontmatter.description,
       publishedTime: blog.frontmatter.date,
+      modifiedTime: modified,
       authors: [blog.frontmatter.author ?? "Rahul Gupta"],
       tags: blog.frontmatter.tags,
     },
@@ -59,13 +62,18 @@ export default async function BlogPostPage({ params }: PageProps) {
   const summaries = await getAllBlogSummaries();
   const { previous, next } = getAdjacentBlogs(summaries, slug);
 
-  const { default: MDXContent, frontmatter, toc, readingTime } = blog;
+  const { default: MDXContent, frontmatter, toc, readingTime, wordCount } = blog;
   const postUrl = `${SITE_URL}/blogs/${slug}`;
 
   return (
     <>
       <ReadingProgress />
-      <BlogJsonLd frontmatter={frontmatter} slug={slug} />
+      <BlogJsonLd
+        frontmatter={frontmatter}
+        slug={slug}
+        readingTime={readingTime}
+        wordCount={wordCount}
+      />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-line">

@@ -2,6 +2,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-static";
+export const revalidate = false;
+
 const FILE_NAME = "Rahul_Gupta_Resume.pdf";
 
 export async function GET() {
@@ -10,7 +13,8 @@ export async function GET() {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${FILE_NAME}"`,
-      "Cache-Control": "public, max-age=3600, s-maxage=86400",
+      "Cache-Control":
+        "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
     },
   });
 }

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { profile } from "@/lib/data";
+import { getAvailability } from "@/lib/availability";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 const KEYWORDS = [
@@ -41,12 +42,13 @@ function highlight(text: string) {
 
 export function About() {
   const parts = highlight(profile.summary);
+  const availability = getAvailability();
   return (
     <section id="about" aria-label="About Rahul Gupta" className="relative py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-6 md:px-10">
         <SectionHeader index="// 01" kicker="profile" title="A summary, not a script." />
 
-        <div className="mt-12 grid md:grid-cols-[1fr_360px] gap-10 md:gap-20">
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-10 lg:gap-16">
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -79,7 +81,7 @@ export function About() {
             <Row k="title" v="Tech Lead" />
             <Row k="focus" v="Systems × Intelligence" />
             <Row k="location" v={profile.location} />
-            <Row k="available" v={profile.availability} />
+            <Row k="available" v={availability.availabilityLine} />
             <Row k="primary-cloud" v="AWS · OCI" />
             <Row k="primary-lang" v="TypeScript · Node" />
           </motion.aside>

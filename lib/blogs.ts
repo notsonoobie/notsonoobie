@@ -7,6 +7,8 @@ import type { ComponentType } from "react";
 export type BlogFrontmatter = {
   title: string;
   date: string;
+  /** Optional ISO date of last update — falls back to `date` if absent. */
+  updated?: string;
   description: string;
   tags?: string[];
   author?: string;
@@ -24,6 +26,7 @@ export type BlogSummary = {
   slug: string;
   frontmatter: BlogFrontmatter;
   readingTime: number;
+  wordCount: number;
 };
 
 export type LoadedBlog = {
@@ -31,6 +34,7 @@ export type LoadedBlog = {
   frontmatter: BlogFrontmatter;
   toc: TocHeading[];
   readingTime: number;
+  wordCount: number;
 };
 
 const BLOG_DIR = join(process.cwd(), "content", "blogs");
@@ -47,7 +51,9 @@ export async function getBlogSlugs(): Promise<string[]> {
   }
 }
 
-async function getReadingTime(slug: string): Promise<number> {
+async function getReadingStats(
+  slug: string,
+): Promise<{ readingTime: number; wordCount: number }> {
   try {
     const raw = await readFile(join(BLOG_DIR, `${slug}.mdx`), "utf8");
     const { content } = matter(raw);
@@ -55,10 +61,11 @@ async function getReadingTime(slug: string): Promise<number> {
       .replace(/```[\s\S]*?```/g, " ")
       .replace(/<[^>]+>/g, " ")
       .replace(/[#>*_`~\-\[\]\(\)]/g, " ");
-    const words = stripped.trim().split(/\s+/).filter(Boolean).length;
-    return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+    const wordCount = stripped.trim().split(/\s+/).filter(Boolean).length;
+    const readingTime = Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
+    return { readingTime, wordCount };
   } catch {
-    return 1;
+    return { readingTime: 1, wordCount: 0 };
   }
 }
 
@@ -67,13 +74,14 @@ export async function readBlog(slug: string): Promise<LoadedBlog | null> {
     const result = await importPage(["blogs", slug]);
     const fm = (result.metadata ?? {}) as Partial<BlogFrontmatter>;
     if (!fm.title || !fm.date) return null;
-    const readingTime = await getReadingTime(slug);
+    const { readingTime, wordCount } = await getReadingStats(slug);
     const toc = Array.isArray(result.toc) ? (result.toc as TocHeading[]) : [];
     return {
       default: result.default as ComponentType,
       frontmatter: fm as BlogFrontmatter,
       toc,
       readingTime,
+      wordCount,
     };
   } catch {
     return null;
@@ -90,6 +98,7 @@ export async function getAllBlogSummaries(): Promise<BlogSummary[]> {
       slug,
       frontmatter: loaded.frontmatter,
       readingTime: loaded.readingTime,
+      wordCount: loaded.wordCount,
     });
   }
   summaries.sort(

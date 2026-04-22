@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,6 +24,34 @@ export function SidebarNav() {
   const [activeItem, setActiveItem] = useState<string>("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const lenis = useLenis();
+  const mobileRef = useRef<HTMLDivElement>(null);
+
+  // Close the mobile drawer on outside click or Escape.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node | null;
+      if (target && mobileRef.current && !mobileRef.current.contains(target)) {
+        setMobileOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown, { passive: true });
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
+
+  // Auto-close when navigating to a new page.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   // Active group derived from current route
   const activeGroup = navGroups.find((g) => {
@@ -172,7 +200,7 @@ export function SidebarNav() {
       </aside>
 
       {/* Mobile: top bar / drawer */}
-      <div className="lg:hidden fixed top-4 right-4 z-40">
+      <div ref={mobileRef} className="lg:hidden fixed top-4 right-4 z-40">
         <button
           onClick={() => setMobileOpen((v) => !v)}
           className="size-10 rounded-md hairline bg-canvas-2/80 backdrop-blur grid place-items-center"

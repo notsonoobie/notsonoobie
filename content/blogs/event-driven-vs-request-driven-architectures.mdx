@@ -1,0 +1,391 @@
+---
+title: "Event-Driven vs Request-Driven Architectures: When to Use What"
+date: 2026-04-21
+description: "A practical guide to choosing between request-driven and event-driven systems, including the tradeoffs around latency, coupling, failure handling, observability, and the places teams overcomplicate both."
+tags: ["architecture", "distributed-systems", "event-driven", "backend"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+One of the most common architecture mistakes is treating "event-driven" and "request-driven" like ideological camps instead of delivery tools.
+
+They solve different problems. They also fail in different ways.
+
+Request-driven systems are usually easier to reason about, easier to debug, and better for synchronous user-facing flows. Event-driven systems are usually better for decoupling, async fan-out, and absorbing load without forcing everything through one live request path.
+
+The right question is not "Which architecture is modern?" It is "Which failure mode, latency profile, and operational model fits this workload?"
+
+## 1. What request-driven architecture actually means
+
+Request-driven architecture is the default shape most teams start with:
+
+```text
+client
+  -> API gateway / load balancer
+  -> service A
+  -> service B
+  -> database
+  -> response
+```
+
+The caller asks for something, and the system does the work immediately in the request path before returning a result.
+
+Typical examples:
+
+- login flows
+- checkout confirmation
+- search APIs
+- CRUD endpoints
+- internal service-to-service APIs
+
+This model is popular for a reason:
+
+- it matches HTTP cleanly
+- cause and effect are obvious
+- errors surface immediately
+- clients get an explicit success or failure
+
+If a user clicks a button and expects an answer right now, request-driven is usually the first architecture worth considering.
+
+## 2. What event-driven architecture actually means
+
+Event-driven architecture changes the shape of work.
+
+Instead of a caller forcing the entire chain to execute synchronously, one component emits an event and other components react to it asynchronously:
+
+```text
+service A
+  -> event bus / broker
+  -> consumer 1
+  -> consumer 2
+  -> consumer 3
+```
+
+The event says something happened:
+
+- `order.created`
+- `payment.completed`
+- `user.onboarded`
+- `invoice.generated`
+
+The publisher does not wait for every downstream action to finish before moving on.
+
+This is powerful when one action should trigger many side effects:
+
+- send email
+- update analytics
+- notify billing
+- enqueue fraud checks
+- update projections or search indexes
+
+Trying to force all of that through one synchronous request is how systems become brittle and slow.
+
+## 3. Request-driven is better when the answer must be immediate
+
+There is a very practical test here:
+
+**If the caller cannot move forward without the result, keep it request-driven.**
+
+Examples:
+
+- checking whether login succeeded
+- authorizing a payment
+- validating inventory before placing an order
+- fetching dashboard data for a visible page load
+
+In these flows, an event-driven system often adds complexity without helping the user experience.
+
+If the UI needs a yes/no answer now, introducing a broker does not remove the need for a synchronous decision path. It just risks adding another moving part around it.
+
+This is why "we should make it event-driven" is often the wrong instinct for core transactional paths.
+
+## 4. Event-driven is better when the work can be decoupled
+
+Event-driven architecture wins when the outcome does not need to block the current caller and multiple consumers should react independently.
+
+Classic examples:
+
+- audit trail generation
+- notifications
+- cache invalidation
+- analytics ingestion
+- downstream integrations
+- search indexing
+- background enrichment or scoring
+
+Here the main benefit is not just async execution. It is **decoupling**.
+
+The producer does not need to know who all the consumers are or how long they take. That gives you:
+
+- cleaner service boundaries
+- easier fan-out
+- better resilience to downstream slowness
+- simpler incremental expansion later
+
+If every new side effect requires modifying the original request handler, the design is already telling you it wants an event boundary.
+
+## 5. Latency tradeoff: request-driven optimizes immediacy, event-driven optimizes throughput isolation
+
+This is where people talk past each other.
+
+Request-driven systems are usually better for:
+
+- immediate responses
+- simpler mental models
+- lower end-to-end latency for one direct action
+
+Event-driven systems are usually better for:
+
+- smoothing spikes
+- decoupling slow consumers
+- absorbing bursty downstream work
+- preventing one hot path from owning every side effect synchronously
+
+If you are rendering a page, request-driven usually wins.
+
+If one order placement should notify eight downstream systems, event-driven usually wins for everything after the core transaction commits.
+
+The key distinction is whether latency must be paid *now* by the caller or can be paid *later* by the system.
+
+## 6. Coupling looks different in each model
+
+Request-driven systems create **temporal coupling**:
+
+- service A needs service B now
+- service B needs service C now
+- if C is slow, A is slow
+
+Event-driven systems reduce temporal coupling, but introduce **consistency and observability complexity**:
+
+- consumers may lag
+- retries may reorder effects
+- not every side effect happens immediately
+- debugging spans multiple handlers and queues
+
+So event-driven is not "less coupled" in some magical absolute sense. It is coupled differently.
+
+You trade live dependency chains for asynchronous coordination and eventual consistency.
+
+Sometimes that trade is excellent. Sometimes it is terrible.
+
+## 7. Failure handling is where the real architecture shows up
+
+Request-driven failure is simple and painful:
+
+- dependency times out
+- request fails
+- caller sees an error immediately
+
+Event-driven failure is more subtle:
+
+- consumer fails
+- message retries
+- duplicate delivery may happen
+- downstream state may be temporarily stale
+- the original caller may think everything is done when only part of the work is complete
+
+That means event-driven systems need stronger operational discipline:
+
+- idempotent consumers
+- dead-letter handling
+- replay strategy
+- retry policy
+- clear ownership of poisoned messages
+
+Without these, event-driven architecture turns into "the system eventually did something mysterious."
+
+## 8. Data consistency is the most important tradeoff teams underestimate
+
+Request-driven flows often give you stronger immediate consistency because the chain completes before the response returns.
+
+Event-driven flows often give you eventual consistency:
+
+- order exists now
+- search index updates in 2 seconds
+- analytics reflect it in 20 seconds
+- recommendation engine reacts later
+
+That is fine if the product semantics allow it.
+
+It is not fine if users expect immediate coherence across the system.
+
+Questions worth asking before choosing an event-driven design:
+
+- Can this consumer lag for 10 seconds?
+- Is duplicate handling acceptable?
+- Can downstream views be stale temporarily?
+- What does the user see while the system catches up?
+
+If the business cannot tolerate delayed convergence, you may still need a request-driven core even if async side effects exist around it.
+
+## 9. Event-driven systems require better contracts, not looser ones
+
+A bad event architecture often comes from treating events like casual log lines instead of real product contracts.
+
+An event should be treated as a stable interface:
+
+```json
+{
+  "eventType": "order.created",
+  "eventId": "evt_01JQ...",
+  "occurredAt": "2026-04-21T10:30:00Z",
+  "orderId": "ord_123",
+  "tenantId": "tenant_9",
+  "amount": 4200,
+  "currency": "INR"
+}
+```
+
+That implies:
+
+- versioning
+- schema discipline
+- backward compatibility
+- ownership
+
+If producers mutate event shape carelessly, consumers break in ways that are much harder to discover than a failing synchronous API call.
+
+This is one reason event-driven systems can become operationally expensive even when they look decoupled on architecture diagrams.
+
+## 10. Request-driven systems are easier to observe, until they aren’t
+
+A simple synchronous flow is usually easier to trace:
+
+- request enters
+- request fans out
+- request returns
+
+Even basic tracing and logs often get you far.
+
+Event-driven flows need stronger observability from day one:
+
+- correlation IDs across events
+- message age metrics
+- consumer lag
+- retry counters
+- DLQ visibility
+- per-consumer success/failure rates
+
+Without that, debugging becomes archaeology.
+
+You know an `order.created` event existed. You are less sure which consumer processed it, whether it retried, whether it duplicated work, or whether it died quietly in a queue at 2:13 a.m.
+
+If the team is not ready to operate that visibility layer, event-driven architecture is usually being adopted too early.
+
+## 11. Most mature systems are hybrids
+
+In practice, the best systems are not purely request-driven or purely event-driven.
+
+They split the workflow intentionally:
+
+1. Handle the critical transaction synchronously
+2. Commit the source-of-truth state
+3. Publish events for secondary reactions
+
+For example, order placement might be:
+
+- request-driven for validation, pricing, inventory reservation, and order write
+- event-driven for notifications, analytics, downstream fulfillment hooks, CRM updates, and search projection refresh
+
+That hybrid model is common because it maps well to reality:
+
+- some work must finish now
+- some work absolutely should not block the caller
+
+Trying to force all work into either category usually makes the system worse.
+
+## 12. When I would choose request-driven first
+
+I would default to request-driven when:
+
+- the user needs an answer immediately
+- the workflow is transactional
+- the dependency graph is still small
+- operational simplicity matters more than future fan-out
+- the team is early and does not need broker complexity yet
+
+Examples:
+
+- auth
+- payments authorization
+- inventory checks
+- account settings updates
+- synchronous search and retrieval APIs
+
+This model is harder to overcomplicate early.
+
+## 13. When I would choose event-driven first
+
+I would lean event-driven when:
+
+- one action fans out into many independent reactions
+- load spikes should be absorbed asynchronously
+- downstream systems do not need to block the caller
+- integrations multiply over time
+- replayability and decoupled consumption matter
+
+Examples:
+
+- audit pipelines
+- analytics ingestion
+- notifications
+- workflow orchestration after a committed state change
+- search indexing
+- ETL and projection building
+
+This is where queues and brokers earn their keep.
+
+## 14. The common anti-patterns
+
+There are two bad defaults I see repeatedly.
+
+### Anti-pattern 1: synchronous everything
+
+One API request:
+
+- writes the DB
+- sends email
+- calls CRM
+- updates analytics
+- triggers fraud service
+- rebuilds cache
+
+This is a reliability trap. One slow side effect contaminates the whole request path.
+
+### Anti-pattern 2: event-driven everything
+
+Even simple request/response flows get split into queues and asynchronous state machines because the team wants to look "decoupled."
+
+This creates unnecessary latency, eventual-consistency confusion, and operational overhead for no user benefit.
+
+If a request can be handled synchronously and cleanly, do not introduce a broker just to sound modern.
+
+## 15. The practical rule
+
+If the work is part of the immediate answer, keep it request-driven.
+
+If the work is a downstream reaction that does not need to block the answer, make it event-driven.
+
+That sounds simple because it mostly is.
+
+The architecture decision becomes hard only when teams ignore product semantics and optimize for style instead of system behavior.
+
+## 16. What actually works
+
+At scale, the architecture that works is usually:
+
+- **request-driven at the transaction boundary**
+- **event-driven for side effects and distribution**
+
+That gives you:
+
+- immediate correctness where users feel it
+- decoupling where the system benefits from it
+- lower blast radius from slow or failing secondary consumers
+- a model the team can still explain during incidents
+
+The best architecture is not the one with the most queues or the fewest queues. It is the one where latency expectations, consistency rules, and failure handling are honest.
+
+---
+
+If you are deciding between these two styles, start by listing which steps must complete before the caller can move on, and which steps are just reactions to a committed state change. That boundary usually tells you more about the right design than any architecture trend ever will.

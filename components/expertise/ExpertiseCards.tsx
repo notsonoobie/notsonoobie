@@ -21,7 +21,7 @@ export function ExpertiseCards() {
           Each feeds the next — products need architecture, architecture needs cloud fluency, and the new cloud runs on intelligence.
         </SectionHeader>
 
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {expertise.map((e, i) => (
             <TiltCard key={e.title} index={i}>
               <div className="flex flex-col gap-4 p-6 h-full">
@@ -86,9 +86,16 @@ function TiltCard({ children, index }: { children: React.ReactNode; index: numbe
       style={{ transform, transformStyle: "preserve-3d" }}
       className="group relative rounded-xl bg-canvas-2/50 hairline hover:bg-canvas-2 transition-colors overflow-hidden"
     >
-      {/* Corner bracket */}
-      <span className="absolute top-0 left-0 size-4 border-l border-t border-cyan/40" />
-      <span className="absolute bottom-0 right-0 size-4 border-r border-b border-cyan/40 group-hover:border-cyan/80 transition-colors" />
+      {/* Corner bracket — inset slightly and thickened so it reads above the
+          hairline edge instead of merging with it. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-1.5 left-1.5 size-5 border-l-2 border-t-2 border-cyan/70 rounded-tl-md"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-1.5 right-1.5 size-5 border-r-2 border-b-2 border-cyan/70 group-hover:border-cyan rounded-br-md transition-colors"
+      />
       <div className="relative">{children}</div>
     </motion.div>
   );

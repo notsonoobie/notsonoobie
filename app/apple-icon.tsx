@@ -10,17 +10,15 @@ export default function AppleIcon() {
         style={{
           width: "100%",
           height: "100%",
-          background: "#0a0b0f",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: "transparent",
           fontFamily: "sans-serif",
-          fontWeight: 700,
-          fontSize: 88,
-          letterSpacing: -2,
+          fontWeight: 800,
+          fontSize: 108,
+          letterSpacing: -6,
           color: "#00E5FF",
-          borderRadius: 36,
-          boxShadow: "inset 0 0 0 3px rgba(0,229,255,0.55)",
         }}
       >
         RG

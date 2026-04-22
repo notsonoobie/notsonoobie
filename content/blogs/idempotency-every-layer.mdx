@@ -1,0 +1,269 @@
+---
+title: "Idempotency at Every Layer: The Contract No One Writes Down"
+date: 2026-04-22
+description: "Idempotency is not a decorator you add to a handler. It's a contract that has to hold at the API edge, the queue consumer, the database, and everywhere in between. Here's how to make it stick."
+tags: ["distributed-systems", "reliability", "api-management", "architecture"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+Most teams treat idempotency as a property of one HTTP handler. They add an `Idempotency-Key` header, store the response in Redis, and call the ticket closed.
+
+Then production does what production does.
+
+A network blip retries a payment. A consumer lag spike replays 40 minutes of events. A webhook provider decides your 200 OK was actually a 504. Suddenly you have two charges, three emails, and a support ticket asking why the user got billed twice for a yearly plan.
+
+Idempotency is not a decorator on a handler. It is a property of the entire request path. If any layer breaks the contract, the system breaks it. This post walks the layers where it actually has to hold.
+
+## 1. What idempotency actually means
+
+Idempotency is a math property before it is an engineering one:
+
+```text
+f(x) = f(f(x)) = f(f(f(x)))
+```
+
+Apply the operation once, apply it a thousand times, the observable state is the same. Not the response body, not the log line, not the audit row. The **observable state** of the system the caller cares about.
+
+That definition matters, because it rules out a lot of cargo-cult implementations:
+
+- "We return the same response" is not idempotency if the second call inserted a duplicate row.
+- "We dedupe by request ID" is not idempotency if the side effect fired twice before the dedupe check.
+- "We use UPSERT" is not idempotency if the update re-triggers a downstream webhook each time.
+
+The observable state includes rows, counters, balances, sent emails, fired webhooks, and money moved. All of them.
+
+A related trap is the phrase "exactly once." Across a network, exactly-once delivery is a marketing term. What you actually get is **at-least-once delivery plus idempotent processing**. Those two together give you the effect of exactly-once from the outside. There is no shortcut.
+
+## 2. The HTTP edge is the easy layer
+
+This is the layer everyone gets right, so I will keep it short.
+
+Mutating endpoints accept an `Idempotency-Key` header. The server keys a cache entry on `(tenant_id, route, method, key)` and stores the full response along with a fingerprint of the request body.
+
+```http
+POST /v1/payments HTTP/1.1
+Host: api.example.com
+Authorization: Bearer ...
+Content-Type: application/json
+Idempotency-Key: 8a7c1f30-5b62-4e19-9f4d-2f9d4ecf3a11
+
+{"amount": 4200, "currency": "INR", "source": "card_9x2"}
+```
+
+The server replays the stored response on the second call, but only if the body fingerprint matches. If the key is the same but the body changed, that is a client bug and you return `409 Conflict` with a clear error code. Do not silently return the old response. You will regret it during an incident review.
+
+Three things that usually get missed at this layer:
+
+- **TTL.** Idempotency records are not eternal. 24 hours is a reasonable default. Longer for payments. Shorter for high-volume endpoints.
+- **In-flight locking.** Two concurrent requests with the same key should not both execute. The first acquires a row-level lock, the second waits or gets a `409`.
+- **Failure caching.** Cache 5xx responses briefly or not at all. The client probably wants to retry, and you want that retry to actually execute.
+
+The edge is the easy part. The bugs live past this point.
+
+## 3. The database is where idempotency is actually enforced
+
+If the DB row can be inserted twice, nothing upstream can save you.
+
+The fix is not "check before insert." That is a race condition wearing a suit. The fix is to make the DB itself the arbiter.
+
+Two tools do most of the work: **deterministic IDs** and **unique constraints**.
+
+Deterministic IDs mean the ID is a pure function of the input, not a fresh UUID generated at the moment of insert. If the same input arrives twice, both attempts compute the same ID, and the second one collides.
+
+```sql
+-- payments table with a deterministic id
+create table payments (
+  id            uuid primary key,              -- deterministic, from caller
+  tenant_id     uuid not null,
+  amount_minor  bigint not null,
+  currency      text not null,
+  status        text not null default 'pending',
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+-- insert-or-replay, no duplicates even under retry storms
+insert into payments (id, tenant_id, amount_minor, currency, status)
+values ($1, $2, $3, $4, 'pending')
+on conflict (id) do update
+  set updated_at = excluded.updated_at
+returning id, status, (xmax = 0) as inserted;
+```
+
+That `xmax = 0` trick tells you whether the row was newly inserted or already existed. Which is exactly the signal you need to decide whether to fire side effects or skip them.
+
+Some shape notes:
+
+- Prefer **UUIDv7** or **ULID** over UUIDv4 for deterministic IDs. You get monotonic ordering for free, which helps indexes and pagination.
+- Natural keys like `(tenant_id, external_ref)` with a unique index are often better than random UUIDs if the caller has a meaningful ID already.
+- Avoid `INSERT ... WHERE NOT EXISTS`. It looks idempotent and is not. Two concurrent inserts can both pass the check.
+
+The next trick is **idempotent state transitions**. Your state machine should be built so that re-applying the same transition is a no-op:
+
+```sql
+-- only advance the state if we are in the expected prior state
+update payments
+   set status = 'captured',
+       updated_at = now()
+ where id = $1
+   and status in ('authorized', 'captured')
+returning status;
+```
+
+If the row is already `captured`, the update still succeeds and the status stays `captured`. If someone tries to capture a `failed` payment, zero rows update and the caller knows to stop. Every state transition in the system should read like this. No blind updates.
+
+## 4. The queue consumer is the hardest layer
+
+The HTTP layer sees one request. The DB sees one row. The queue consumer sees the same message multiple times and usually cannot tell you which retry attempt this is.
+
+Brokers deliver at-least-once. Redelivery happens when:
+
+- the consumer crashed before acking
+- the ack itself was lost
+- a rebalance triggered a replay
+- the message was moved from a DLQ back to the main topic
+- someone clicked "reprocess last hour" during an incident
+
+Every one of those will happen. None of them are bugs. Your consumer has to be idempotent by design.
+
+The pattern that works is a **dedup table** keyed on the message identity, written in the same transaction as the side effect:
+
+```ts
+// consumer.ts
+type Message = {
+  id: string;           // broker-assigned or producer-assigned, stable
+  type: string;         // e.g. "payment.captured"
+  tenantId: string;
+  payload: unknown;
+};
+
+export async function handle(msg: Message, db: Db): Promise<void> {
+  await db.tx(async (tx) => {
+    // 1. claim the message or bail out
+    const claim = await tx.query(
+      `insert into processed_messages (consumer, message_id, claimed_at)
+       values ($1, $2, now())
+       on conflict (consumer, message_id) do nothing
+       returning message_id`,
+      ["payments-projector", msg.id],
+    );
+
+    if (claim.rowCount === 0) {
+      // already processed, or another worker has it in the same tx
+      return;
+    }
+
+    // 2. do the actual work in the same transaction
+    await applyProjection(tx, msg);
+
+    // 3. commit. ack happens only after commit succeeds.
+  });
+}
+```
+
+The important part is the transactional boundary. The claim row and the side effect row commit together. If the process dies mid-work, the claim row rolls back too, and the next delivery gets to try again from a clean state.
+
+What this design explicitly avoids:
+
+- **Ack-before-work.** You cannot dedupe a message you already acked. The ack belongs after the DB commit.
+- **Work-before-claim.** If you do the work first and write the claim row after, a crash between the two means the next retry does the work twice.
+- **In-memory dedup.** A `Set<string>` on the worker dies with the worker. Use the DB.
+
+The dedup table grows, so add a background job that trims entries older than the broker's maximum retention plus a safety margin. A week is usually plenty.
+
+For systems with durable workflow engines in the stack, this gets easier because the engine keeps its own execution history and guarantees step-level idempotency. That is a sibling topic and I will not expand it here.
+
+## 5. Side effects are where the money leaks out
+
+The DB is your world. Email, SMS, webhooks, payment capture, pushes to external APIs are not. Retrying those naively is how customers get charged twice or receive four identical "welcome" emails.
+
+Two rules that hold up well:
+
+1. **Pass your idempotency token downstream.** Good providers accept one. Stripe, PayPal, Twilio, SendGrid, most payment gateways, most modern webhook APIs. Use it. Same token, same effect.
+2. **Record the side effect before firing it, and mark it done after.** A `side_effects` table with states `pending -> fired -> confirmed` lets you recover safely on crash.
+
+```sql
+create table side_effects (
+  id             uuid primary key,
+  source_id      uuid not null,             -- the domain event that triggered this
+  kind           text not null,             -- 'email.welcome', 'webhook.payment'
+  idempotency_key text not null,            -- token to pass to provider
+  state          text not null default 'pending',
+  attempts       int  not null default 0,
+  last_error     text,
+  created_at     timestamptz not null default now(),
+  unique (source_id, kind)
+);
+```
+
+The `unique (source_id, kind)` constraint is the keystone. For any given source event, there is at most one welcome email ever planned. Retries increment `attempts`, not rows.
+
+When the provider does not support idempotency tokens, you have two choices and neither is great:
+
+- Accept occasional duplicates where they are cheap (analytics pings, non-billing notifications).
+- Fall back to a **compensation** pattern where you detect the duplicate after the fact and undo it.
+
+Compensations are a last resort. They require the downstream system to be queryable, they add end-to-end latency, and they turn a clean write path into a reconciliation loop. Prefer idempotency tokens. Lean on compensation only where the provider forces you to.
+
+## 6. The Idempotency-Key is a protocol, not a column
+
+Something that took me a while to internalize: the idempotency token is not a local implementation detail. It is a **contract that flows through the system**.
+
+A clean path looks like this:
+
+- Client generates a UUIDv7, stores it, sends it in `Idempotency-Key`.
+- API server stores it and derives a deterministic domain ID from `hash(tenant_id, key)`.
+- Domain ID is the primary key in the DB.
+- Events published to the broker carry the same domain ID as `event.id`.
+- Consumers dedupe on `event.id`.
+- Side effects derive their own keys from `hash(event.id, side_effect_kind)`.
+- Downstream providers receive that derived key as their idempotency header.
+
+One token at the edge, a family of deterministic keys everywhere else, all recoverable from the original input. Retry the client call ten times and the whole chain lands on the same IDs.
+
+This is the part no one documents. It is also the part that makes the whole system actually idempotent instead of "idempotent on the happy path."
+
+## 7. Observability: measure the duplicate rate or fly blind
+
+If you are not measuring duplicates, you do not know if any of this is working.
+
+Three metrics worth emitting:
+
+- **Idempotency replay rate** at the API edge. Percentage of requests with a matching stored key. If it spikes, clients are retrying heavily, which usually points to a latency or availability problem upstream of you.
+- **Consumer dedup hit rate.** Percentage of messages rejected by the dedup table. Healthy at-least-once systems run between 0.1 percent and a few percent. A sudden jump usually means a broker rebalance, a DLQ replay, or a bad deploy.
+- **Side effect duplicate detection.** If your provider surfaces "we already processed this idempotency key," log it as a structured metric. It tells you which side effects were retried and whether the token flow is intact end to end.
+
+You also want a **drift alarm**. A daily job that walks a sample of domain objects and checks that the count of related side effects matches the expected count. If `payments.status = 'captured'` but zero `side_effects.kind = 'webhook.payment_captured'`, that is a bug. If there are two, that is a bigger bug.
+
+Without these, you find out about idempotency failures from customers. That is a bad way to find out.
+
+## 8. The exactly-once myth
+
+I want to close the loop on this because it keeps coming up.
+
+Brokers advertise "exactly once" in three flavors, and all three are narrower than the label suggests:
+
+- **Exactly-once within the broker.** The broker itself does not double-write. Fine, but you have producers and consumers on either side of it.
+- **Exactly-once producer.** The producer's retries are deduped server-side by a producer ID plus sequence number. Good feature. Still does not stop the consumer from replaying.
+- **Exactly-once consumer, read-process-write within one broker.** A specific pattern where input, output, and offset commit happen in one transaction. Works beautifully if your side effects are other topics on the same broker. Breaks as soon as you write to a DB, call an external API, or publish to a different broker.
+
+The useful framing is simpler: **brokers give you at-least-once delivery and tools to help**. Your application makes it look exactly-once by being idempotent. That is the contract. There is no config flag that replaces it.
+
+## 9. What actually works
+
+A system that holds up under retries, redelivery, and the occasional incident-induced replay usually has this shape:
+
+- Clients generate idempotency keys and send them on every mutating request.
+- API servers persist those keys with body fingerprints and TTLs.
+- Domain IDs are deterministic, derived from the idempotency key or a natural composite key.
+- Every write is `INSERT ... ON CONFLICT` or a guarded `UPDATE ... WHERE status IN (...)`. No blind inserts, no blind updates.
+- Consumers dedupe via a transactional claim table and ack only after commit.
+- Side effects are recorded before they fire and receive a derived idempotency token the downstream provider will honor.
+- Dashboards expose the duplicate rate at every layer, and a drift job checks for missing or extra side effects.
+
+None of that is exotic. It is a thousand small disciplined decisions, each cheap on its own, each expensive to retrofit after the fact.
+
+---
+
+If you remember one thing from this, make it this: idempotency is not a feature you bolt onto one endpoint. It is a property of the path from the user's retry button to the last byte written to your database or sent to a third party. Design it once, end to end, and you stop writing midnight Slack messages that start with "so, about those duplicate charges."
