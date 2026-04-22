@@ -59,7 +59,7 @@ export function PostShare({ url, title }: Props) {
         type="button"
         aria-label="Copy link"
         onClick={copy}
-        className="size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-cyan hover:bg-canvas-2 transition-colors"
+        className="size-9 md:size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-cyan hover:bg-canvas-2 transition-colors"
       >
         {copied ? <Check className="size-3.5 text-mint" /> : <Copy className="size-3.5" />}
       </button>
@@ -68,7 +68,7 @@ export function PostShare({ url, title }: Props) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Share on LinkedIn"
-        className="size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-cyan hover:bg-canvas-2 transition-colors"
+        className="size-9 md:size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-cyan hover:bg-canvas-2 transition-colors"
       >
         <LinkedinIcon className="size-3.5" />
       </a>
@@ -77,7 +77,7 @@ export function PostShare({ url, title }: Props) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Share on X / Twitter"
-        className="size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-cyan hover:bg-canvas-2 transition-colors"
+        className="size-9 md:size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-cyan hover:bg-canvas-2 transition-colors"
       >
         <XIcon className="size-3.5" />
       </a>
@@ -86,7 +86,7 @@ export function PostShare({ url, title }: Props) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Share on WhatsApp"
-        className="size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-mint hover:bg-canvas-2 transition-colors"
+        className="size-9 md:size-8 grid place-items-center rounded-md hairline bg-canvas-2/60 text-ink-dim hover:text-mint hover:bg-canvas-2 transition-colors"
       >
         <WhatsAppIcon className="size-3.5" />
       </a>

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { profile, stats, expertise, products, skills, experience } from "@/lib/data";
 
+export const dynamic = "force-static";
+export const revalidate = false;
+
 export function GET() {
   return NextResponse.json(
     {
@@ -24,7 +27,8 @@ export function GET() {
     },
     {
       headers: {
-        "Cache-Control": "public, max-age=3600, s-maxage=86400",
+        "Cache-Control":
+          "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=86400",
       },
     },
   );

@@ -1,0 +1,338 @@
+---
+title: "xDS REST and gRPC for Config Push Between Control Plane and Data Plane"
+date: 2026-04-22
+description: "A simpler introduction to how xDS works, what the control plane and data plane do, and when REST or gRPC makes more sense for pushing configuration updates."
+tags: ["xds", "envoy", "distributed-systems", "api-management"]
+author: "Rahul Gupta"
+authorTitle: "Senior Software Engineer"
+---
+
+If you are new to service mesh, gateways, or Envoy-style systems, xDS can feel more complex than it really is.
+
+The core idea is actually simple:
+
+- one part of the system **decides configuration**
+- another part of the system **uses that configuration to handle traffic**
+
+In xDS language:
+
+- the **control plane** decides the config
+- the **data plane** uses the config
+
+The only real question is: **how does the config travel from control plane to data plane?**
+
+That is where xDS with REST and gRPC comes in.
+
+This post explains it in a simpler way, especially for engineers closer to SDE-1 level.
+
+## 1. First, understand control plane vs data plane
+
+Let’s say you are running an API gateway or proxy like Envoy.
+
+When a real user request comes in:
+
+- route `/payments` to service A
+- route `/orders` to service B
+- apply rate limiting
+- apply retries
+- apply timeouts
+- do TLS termination
+
+That work happens in the **data plane**.
+
+The data plane is the part handling live traffic.
+
+Now think about where the rules came from:
+
+- which service exists?
+- what route should match?
+- what timeout should be used?
+- what upstream endpoints are healthy?
+
+That logic usually lives in the **control plane**.
+
+So a simple mental model is:
+
+```text
+control plane = brain
+data plane = worker
+```
+
+The brain decides the instructions.
+The worker follows them while serving traffic.
+
+## 2. What xDS actually means
+
+xDS is a set of APIs used to send configuration from the control plane to the data plane.
+
+You can think of it like a config delivery protocol for Envoy-style proxies.
+
+Different parts of config are split into different APIs:
+
+- **LDS** = Listener Discovery Service
+- **RDS** = Route Discovery Service
+- **CDS** = Cluster Discovery Service
+- **EDS** = Endpoint Discovery Service
+
+You do not need to memorize all of them on day one.
+
+The important idea is that xDS lets the proxy ask:
+
+"What listeners, routes, clusters, and endpoints should I use right now?"
+
+And the control plane answers with configuration.
+
+## 3. Why not just keep config in a file?
+
+You absolutely can use static config files when the setup is small.
+
+But static config becomes painful when:
+
+- services scale up and down dynamically
+- routes change often
+- new deployments happen regularly
+- health status changes fast
+- many proxies need updated config at the same time
+
+In those cases, you do not want to SSH into boxes and edit YAML.
+
+You want:
+
+- central config management
+- dynamic updates
+- consistent rollout
+- less manual work
+
+That is why xDS exists.
+
+## 4. REST in xDS: easy to understand, but more pull-based
+
+In REST mode, the data plane usually asks the control plane for config again and again.
+
+Very simple picture:
+
+```text
+data plane -> "Do you have new config?"
+control plane -> "Yes, here it is"
+```
+
+This often works like polling.
+
+For example:
+
+1. Envoy sends an HTTP request
+2. Control plane returns config as response
+3. After some interval, Envoy asks again
+
+This is easier to understand because it looks like normal API communication.
+
+Benefits of REST-based xDS:
+
+- simple mental model
+- easy to inspect with normal HTTP tooling
+- easier to start with in small systems
+
+But there are also downsides:
+
+- updates are not truly instant unless polling is very frequent
+- more polling means more overhead
+- slower propagation of config changes
+
+So REST is fine for learning and smaller setups, but it is usually not the best fit for fast-moving large systems.
+
+## 5. gRPC in xDS: better for real-time config updates
+
+With gRPC, the control plane and data plane keep a long-lived connection open.
+
+Instead of:
+
+"Ask every few seconds whether something changed"
+
+it becomes:
+
+"Stay connected, and I’ll tell you when config changes"
+
+That makes config delivery much more efficient.
+
+Very simple picture:
+
+```text
+data plane <==== long-lived gRPC stream ====> control plane
+```
+
+Now if the control plane has a new route or endpoint update, it can push it quickly over the stream.
+
+Benefits of gRPC-based xDS:
+
+- faster config propagation
+- less waste from repeated polling
+- better for large fleets
+- fits dynamic environments much better
+
+This is why gRPC is the more common choice in serious production setups.
+
+## 6. Why people say "config push" even though the proxy also requests state
+
+This part confuses many beginners.
+
+People often say:
+
+"The control plane pushes config to the data plane."
+
+That is mostly true from a system behavior point of view.
+
+But technically, especially in xDS, the proxy usually still starts the communication and subscribes to resources.
+
+So a more accurate mental model is:
+
+1. Data plane connects to control plane
+2. Data plane tells what resources it wants
+3. Control plane sends updates whenever needed
+
+So it feels like push, even though there is an ongoing request/stream relationship behind the scenes.
+
+That is a perfectly fine way to think about it.
+
+## 7. A simple real-world example
+
+Let’s say your control plane manages routes for many APIs:
+
+- `/users` -> user-service
+- `/payments` -> payment-service
+- `/orders` -> order-service
+
+Now imagine `payment-service` gets deployed with new pods or new IPs.
+
+What should happen?
+
+Without dynamic config:
+
+- someone updates static config
+- proxy reloads happen
+- rollout becomes messy
+
+With xDS:
+
+- control plane notices new endpoints
+- control plane updates cluster/endpoint config
+- data plane receives the update
+- traffic starts going to the new healthy instances
+
+This is the real benefit.
+
+The proxy does not need to be manually reconfigured all the time.
+
+## 8. REST vs gRPC in simple terms
+
+If you want the easy version, think of it like this:
+
+### REST
+
+- "Let me ask again if something changed"
+- simpler to reason about
+- slower for fast-changing systems
+
+### gRPC
+
+- "Let’s stay connected and update in real time"
+- more efficient
+- better for dynamic and large-scale systems
+
+That is the big difference.
+
+## 9. When REST can still be okay
+
+REST is not useless.
+
+It can still be okay when:
+
+- the system is small
+- config changes are infrequent
+- you want easier debugging
+- you are learning the model first
+
+If you are building a small internal gateway or experimenting locally, REST may be enough.
+
+But once the system starts growing, gRPC becomes much more attractive.
+
+## 10. When gRPC is usually the better choice
+
+gRPC is the better choice when:
+
+- config changes need to reach proxies quickly
+- there are many proxies
+- endpoints change often
+- service discovery is dynamic
+- you want fewer repeated polling calls
+
+This is why production-grade control planes usually prefer gRPC xDS.
+
+At scale, polling over REST starts to feel wasteful very quickly.
+
+## 11. What config is usually pushed?
+
+For beginners, it helps to know what kinds of config typically move through xDS:
+
+- listeners
+- routes
+- clusters
+- endpoints
+- TLS settings
+- retry and timeout rules
+
+So when you hear "control plane pushes config," it is not some abstract thing.
+
+It usually means:
+
+- where traffic should go
+- how traffic should be handled
+- which upstream targets are active
+
+## 12. One important caution: bad config can spread fast
+
+Dynamic config is powerful, but it also increases blast radius.
+
+If the control plane sends bad config:
+
+- many proxies may receive it
+- many routes may break at once
+- incidents can spread quickly
+
+That means a good control plane should also have:
+
+- validation
+- versioning
+- rollback support
+- staged rollout if possible
+
+Dynamic config is useful, but it needs guardrails.
+
+## 13. The easiest way to remember all this
+
+If you want the shortest summary:
+
+- **control plane** decides config
+- **data plane** handles traffic
+- **xDS** is how config moves between them
+- **REST** is simpler but more polling-based
+- **gRPC** is more stream-based and better for fast dynamic updates
+
+That is enough to build the right mental model.
+
+## 14. What should an SDE-1 remember?
+
+If you are early in your backend or infra journey, remember these practical points:
+
+1. Data plane serves traffic. Control plane manages rules.
+2. xDS is mainly about dynamic config delivery.
+3. REST is easier to understand, but usually slower for frequent updates.
+4. gRPC is usually preferred in production because it keeps an open stream for faster updates.
+5. Dynamic config is great, but only if the control plane is reliable and validates changes properly.
+
+That is the real takeaway.
+
+You do not need to understand every Envoy detail on day one. Start with the control-plane/data-plane split and the REST-vs-gRPC update model. Once that clicks, the rest becomes much easier to learn.
+
+---
+
+If you are building API gateways, service mesh control planes, or internal traffic management systems, xDS stops feeling scary once you reduce it to one simple question: "How does the proxy learn the latest config?" REST and gRPC are just two different answers to that same problem.
