@@ -67,7 +67,7 @@ function ProductPanel({
       </div>
 
       <div
-        className={`relative grid gap-10 md:gap-16 items-center lg:grid-cols-[1.1fr_1fr] ${
+        className={`relative grid grid-cols-1 gap-10 md:gap-16 items-center lg:grid-cols-[1.1fr_1fr] ${
           reversed ? "lg:[&>*:first-child]:order-2" : ""
         }`}
       >
@@ -78,10 +78,10 @@ function ProductPanel({
           viewport={{ once: true, margin: "-15%" }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="flex items-center gap-3 font-mono text-[11px] tracking-[0.3em] uppercase text-ink-dim">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[11px] tracking-[0.18em] sm:tracking-[0.3em] uppercase text-ink-dim">
             <span className={`inline-block size-1.5 rounded-full ${accentBg} shadow-[0_0_10px_currentColor] ${accentText}`} />
             <span>{String(index + 1).padStart(2, "0")} / 05</span>
-            <span className="h-px w-10 bg-line" />
+            <span className="hidden sm:inline-block h-px w-10 bg-line" />
             <span className={accentText}>{product.role}</span>
           </div>
 

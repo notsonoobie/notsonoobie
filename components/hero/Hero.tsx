@@ -1,6 +1,7 @@
 "use client";
 
 import { smoothScrollTo, useLenis } from "@/components/motion/LenisProvider";
+import { getAvailability } from "@/lib/availability";
 import { profile } from "@/lib/data";
 import { motion } from "framer-motion";
 import { ArrowDown } from "lucide-react";
@@ -9,6 +10,7 @@ import { ServiceMesh } from "./ServiceMesh";
 
 export function Hero() {
   const lenis = useLenis();
+  const availability = getAvailability();
   return (
     <section
       id="hero"
@@ -18,11 +20,16 @@ export function Hero() {
       {/* Full-bleed faint dotted grid */}
       <div aria-hidden className="absolute inset-0 bg-grid bg-grid-fade opacity-40 pointer-events-none" />
 
-      {/* Top meta bar */}
-      <div className="absolute top-0 left-0 right-0 z-20 px-6 md:px-10 pt-6 flex items-center justify-between font-mono text-[11px] text-ink-dim">
+      {/* Top meta bar — pr-16 on mobile/tablet keeps the TimeStamp clear of the
+          SidebarNav burger (top-4 right-4 size-10) that's visible below lg. */}
+      <div className="absolute top-0 left-0 right-0 z-20 pl-6 pr-16 md:pl-10 lg:pr-10 pt-6 flex items-center justify-between font-mono text-[11px] text-ink-dim">
         <div className="flex items-center gap-2">
-          <span className="inline-block size-1.5 rounded-full bg-mint shadow-[0_0_8px_currentColor]" />
-          <span>online · mumbai_in</span>
+          <span
+            className={`inline-block size-1.5 rounded-full shadow-[0_0_8px_currentColor] ${
+              availability.accent === "mint" ? "bg-mint text-mint" : "bg-amber text-amber"
+            }`}
+          />
+          <span>{availability.statusLabel} · mumbai_in</span>
         </div>
         <div className="hidden sm:flex items-center gap-4 opacity-80">
           <span>region: ap-south-1</span>
@@ -41,7 +48,7 @@ export function Hero() {
 
       {/* Main grid: text left, graph right */}
       <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-10 pt-32 md:pt-40 pb-28">
-        <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-center min-h-[68vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-center min-h-[60vh] lg:min-h-[68vh]">
           {/* Left: text column */}
           <div className="relative">
             <motion.div
@@ -101,7 +108,7 @@ export function Hero() {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="relative aspect-square w-full max-w-[560px] mx-auto lg:max-w-none lg:w-full lg:h-[min(72vh,640px)] lg:aspect-auto"
+            className="relative aspect-square w-full max-w-[440px] sm:max-w-[520px] md:max-w-[640px] mx-auto lg:max-w-none lg:w-full lg:h-[min(72vh,640px)] lg:aspect-auto"
           >
             {/* Mesh container */}
             <div className="relative h-full w-full overflow-hidden">

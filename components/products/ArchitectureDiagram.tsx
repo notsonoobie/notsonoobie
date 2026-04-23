@@ -200,7 +200,9 @@ function AgentDiagram({ color, id }: { color: string; id: string }) {
   const W = 512;
   const H = 320;
   const cx = W / 2;
-  const cy = H / 2 + 4;
+  // Shift the orbit up slightly so the bottom-most satellite label ("memory")
+  // leaves breathing room above the footer caption.
+  const cy = H / 2 - 4;
   const R = 40;
 
   const satellites = [
@@ -320,7 +322,7 @@ function AgentDiagram({ color, id }: { color: string; id: string }) {
       {/* Footer */}
       <text
         x={cx}
-        y={H - 22}
+        y={H - 12}
         textAnchor="middle"
         fontFamily="var(--font-mono)"
         fontSize={10}
