@@ -11,6 +11,7 @@ const meta = {
   "service-mesh-overrated": "Service Mesh Is Overrated for Most Teams",
   "finops-cloud-native-right-size": "FinOps for Cloud-Native: Right-Size Before Refactor",
   "best-api-gateway-2026-comparison": "Choosing the Right API Gateway in 2026",
+  "understanding-grpc-protobuf-rest-graphql": "Understanding gRPC in Depth: Protobuf, REST, and GraphQL",
   "fastest-golang-web-frameworks-and-when-to-choose": "The Fastest Golang Web Frameworks and When to Choose Which",
   "nodejs-in-production": "Running Node.js in production",
   "vibe-coding-explained": "Vibe Coding Explained",
