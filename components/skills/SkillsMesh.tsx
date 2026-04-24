@@ -12,7 +12,7 @@ export function SkillsMesh() {
       <div className="mx-auto max-w-7xl px-6 md:px-10">
         <SectionHeader index="// 04" kicker="technical skills" title="Wired across the stack." />
 
-        <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {skills.map((group, i) => {
             const accent = ACCENTS[i % ACCENTS.length];
             return (
