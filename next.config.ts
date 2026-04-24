@@ -8,7 +8,7 @@ const withNextra = nextra({
 });
 
 const baseConfig: NextConfig = {
-  allowedDevOrigins: ["192.168.0.109"],
+  allowedDevOrigins: ["192.168.0.103"],
 };
 
 export default withNextra(baseConfig);

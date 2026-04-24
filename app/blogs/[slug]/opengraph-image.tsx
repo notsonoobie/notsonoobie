@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getBlogSlugs, readBlog } from "@/lib/blogs";
+import { SITE_HOST } from "@/lib/seo";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -176,7 +177,7 @@ export default async function PostOG({ params }: Params) {
               {authorName}
             </span>
             <span style={{ display: "flex", fontFamily: "monospace", fontSize: 15, color: "#8a93a6" }}>
-              agenticwithrahul.in
+              {SITE_HOST}
             </span>
           </div>
         </div>

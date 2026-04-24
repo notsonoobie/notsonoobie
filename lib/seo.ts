@@ -1,4 +1,13 @@
-export const SITE_URL = "https://agenticwithrahul.in";
+// Origin used for every absolute URL the app emits (OG, JSON-LD, sitemap,
+// robots, canonicals, newsletter email footers). Set via SITE_URL env var,
+// falls back to the production domain so local dev / fresh clones still
+// work without a .env.local.
+const FALLBACK_SITE_URL = "https://agenticwithrahul.in";
+export const SITE_URL = (
+  process.env.SITE_URL ?? FALLBACK_SITE_URL
+).replace(/\/$/, "");
+/** Hostname form of SITE_URL — use for display strings ("agenticwithrahul.in") */
+export const SITE_HOST = new URL(SITE_URL).host;
 export const SITE_NAME = "Rahul Gupta — Portfolio";
 export const SITE_SHORT_NAME = "Rahul Gupta";
 export const SITE_AUTHOR = "Rahul Gupta";

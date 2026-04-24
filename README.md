@@ -1,5 +1,5 @@
 <h1 align="center">Hi 👋, I'm Rahul Gupta</h1>
-<h3 align="center">Senior Product Engineer · Solutions Architect · Agentic AI</h3>
+<h3 align="center">Senior Software Engineer · Solutions Architect · Agentic AI</h3>
 
 <p align="center">
   <em>Designing distributed, event-driven systems on AWS &amp; OCI — and embedding LLM-powered capabilities into production-grade cloud-native platforms.</em>
