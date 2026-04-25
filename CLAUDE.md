@@ -224,55 +224,92 @@ all motion timings collapsed to 0.01ms in globals.css).
 
 ## Blogs system
 
-- `content/blogs/<slug>.mdx` with frontmatter:
+Blogs live in **Supabase** (`public.blogs`). The legacy MDX-on-disk
++ Nextra setup was migrated; there is no `content/blogs/` directory,
+no `_meta.ts`, no `nextra-theme-blog`. See `docs/publishing-a-blog.md`
+for the author workflow (Studio insert OR `pnpm dlx tsx scripts/import-blogs.ts`).
 
-```yaml
----
-title: "…"
-date: 2026-02-14           # ISO date — sorted desc by date
-description: "…"
-tags: ["api-management", …]
-author: "Rahul Gupta"
-authorTitle: "Senior Software Engineer"   # shown as subtitle under avatar
-draft: false
----
-```
+### Schema
 
-- `lib/blogs.ts` is the API: `getBlogSlugs`, `readBlog(slug)`,
-  `getAllBlogSummaries()`, `getAdjacentBlogs(summaries, slug)`.
-- **Reading time** is computed from the raw markdown (strips code fences,
-  HTML, and markdown syntax) at 220 wpm.
-- Post list (`/blogs`):
-  - Featured-post treatment activates when `posts.length >= 3`.
-  - With 1 archive post, grid collapses to single column (no "lonely card").
-- Post detail (`/blogs/[slug]`):
-  - `<ReadingProgress />` at top (cyan gradient, Framer spring).
-  - Hero with gradient glow, reading-time badge, tag row, drop-capped intro.
-  - `<PostTOC />` on `xl+` as a sticky right rail with scroll-spy; content
-    container is `max-w-6xl xl:flex xl:justify-center` so the article + TOC
-    block stays centered (don't revert to `max-w-7xl`, it left ~180px of
-    empty space on the right).
-  - `<PostShare />` (copy, LinkedIn, X) appears twice — in hero + footer.
-  - `<PostNav />` renders only the cards that exist (no empty flex slots).
-- **Sitemap** pulls blog URLs from filesystem at build time and uses
-  `frontmatter.date` as `lastModified`.
+`public.blogs` columns (the important ones):
 
-### Blog MDX components
+| column           | type          | notes                                              |
+|---|---|---|
+| `slug`           | text (unique) | URL path; canonical forever, don't rename          |
+| `title`          | text          | required                                            |
+| `description`    | text          | required, ≤ 160 chars sweet spot                   |
+| `body_md`        | text          | raw markdown, rendered via unified pipeline        |
+| `tags`           | text[]        | first tag drives `og:section`                      |
+| `author`         | text          | defaults to "Rahul Gupta"                          |
+| `author_title`   | text          | subtitle under the author chip                     |
+| `cover_image_url`| text          | optional cover                                      |
+| `published_at`   | timestamptz   | drives sort + sitemap `lastModified`               |
+| `updated_at`     | timestamptz   | optional; emits `og:modified_time` when set        |
+| `is_published`   | bool          | `false` = draft (hidden everywhere)                |
+| `reading_time`   | int           | computed at write time, 220 wpm                    |
+| `word_count`     | int           | computed at write time                             |
 
-- `pre` → `CodeBlock` (client) — reads Nextra/Shiki's `data-language` prop
-  for the header label. Falls back to `language-xxx` on inner `<code>`.
-  Header has 3 mac dots + label + "copy" button (turns to "copied ✓" for
-  1.8s).
-- `img` → `LightboxImage` (client) — glassmorphism modal
-  (`backdrop-blur-2xl`, `bg-black/55`). Zoom is **width-based** (`width:
-  ${82 * zoom}vw`), NOT `transform: scale`, so the overflow-auto container
-  legitimately scrolls when the image exceeds viewport. `F` toggles
-  screen/natural fit. `+`/`-`/`0` zoom. `Esc` close.
+Plus the search-index columns: `search_vector` (`tsvector`,
+auto-maintained by trigger) and `search_text` (concat of title +
+description + body for `pg_trgm` similarity).
+
+### Data layer (`lib/blogs.ts`)
+
+Thin Supabase wrapper. Public API:
+- `searchBlogs({ q, tags, page, pageSize })` — calls the
+  `search_blogs_v1` RPC (FTS via `websearch_to_tsquery` first, then
+  `pg_trgm` `word_similarity` fallback for typo tolerance). Returns
+  `{ items, total, hasMore }`.
+- `getAllBlogSummaries()` — every published blog, sorted desc.
+- `getBlogSlugs()` — slug list for `generateStaticParams`.
+- `readBlog(slug)` — single row by slug, returns body + frontmatter
+  shape compatible with the renderer.
+- `getAdjacentBlogs(summaries, slug)` — prev/next.
+- `getAllTags()` — distinct tag list with post counts (drives the
+  topic dropdown).
+
+### Rendering pipeline
+
+`components/blogs/BlogMarkdown.tsx` runs `unified()`:
+- `remark-parse` → `remark-gfm` → `remark-rehype`
+- `rehype-slug` → `rehype-autolink-headings` (anchors)
+- `@shikijs/rehype` (with `addLanguageClass: true`)
+- `rehype-sanitize` (with `clobberPrefix: ""` to preserve heading IDs)
+- a custom `rehypeCollectToc` plugin that walks the HAST and pushes
+  `{value, id, depth}` into a passed-in array
+- `rehype-react` to materialise the React tree
+
+Output: `{ body: ReactNode, toc: TocItem[] }` from a single pipeline
+pass.
+
+### Routes
+
+- `/blogs` — `dynamic = "force-dynamic"`. Hero + `BlogsToolbar` (search
+  + topic picker) + `BlogsGrid` (server-rendered initial page +
+  client-side "load more" via the `loadMoreBlogs` server action in
+  `app/blogs/actions.ts`).
+- `/blogs/[slug]` — `generateStaticParams` from `getBlogSlugs()`,
+  fall back to on-demand for new slugs added post-deploy. Hero,
+  drop-capped intro, `<PostTOC />` (sticky `xl+`), `<PostShare />`,
+  `<PostNav />` (only renders cards that exist).
+- `/blogs/opengraph-image` — list-page OG.
+- `/blogs/[slug]/opengraph-image` — per-post OG with date + reading
+  time + tags badge.
+
+### Body components
+
+- `pre` → `CodeBlock` (client) — reads `class="language-xxx"` on the
+  inner `<code>` (set by `@shikijs/rehype` via `addLanguageClass`)
+  for the header label. 3 mac dots + label + copy button.
+- `img` → `LightboxImage` (client) — glassmorphism modal, zoom is
+  **width-based** (`width: ${82 * zoom}vw`), NOT `transform: scale`,
+  so overflow-auto legitimately scrolls. `F` toggles screen/natural
+  fit. `+`/`-`/`0` zoom. `Esc` close.
 
 ### Shiki syntax highlighting
 
-- Enabled by Nextra's default `next.config.ts` processing.
-- Uses dual-theme CSS vars (`--shiki-dark`, `--shiki-light`). We force dark
+- Run as a rehype plugin in the BlogMarkdown pipeline (no Nextra).
+- Dual-theme CSS vars (`--shiki-dark`, `--shiki-light`). We force dark
   site-wide via `blogs.css`:
   ```css
   .blog-prose pre,
@@ -282,8 +319,14 @@ draft: false
     ...
   }
   ```
-  Don't re-introduce a flat `color: #d6dde8` on `pre code` — it'll clobber
-  Shiki's inline token colors.
+  Don't re-introduce a flat `color: #d6dde8` on `pre code` — it'll
+  clobber Shiki's inline token colors.
+
+### Sitemap
+
+`app/sitemap.ts` calls `getAllBlogSummaries()` at request time and
+emits `/blogs/<slug>` per published row with `lastModified =
+published_at`. No filesystem globbing.
 
 ### Prose CSS scope
 
