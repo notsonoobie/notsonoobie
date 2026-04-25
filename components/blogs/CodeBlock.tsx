@@ -2,42 +2,12 @@
 
 import { Children, isValidElement, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { langLabel } from "@/lib/markdown/lang-label";
 
 type CodeBlockProps = React.HTMLAttributes<HTMLPreElement> & {
   children?: React.ReactNode;
   ["data-language"]?: string;
   ["data-theme"]?: string;
-};
-
-const LANG_LABEL: Record<string, string> = {
-  js: "JavaScript",
-  javascript: "JavaScript",
-  ts: "TypeScript",
-  typescript: "TypeScript",
-  tsx: "TSX",
-  jsx: "JSX",
-  json: "JSON",
-  yaml: "YAML",
-  yml: "YAML",
-  sh: "Shell",
-  bash: "Bash",
-  zsh: "Zsh",
-  html: "HTML",
-  css: "CSS",
-  scss: "SCSS",
-  sql: "SQL",
-  rust: "Rust",
-  go: "Go",
-  py: "Python",
-  python: "Python",
-  md: "Markdown",
-  mdx: "MDX",
-  dockerfile: "Dockerfile",
-  toml: "TOML",
-  ini: "INI",
-  diff: "Diff",
-  text: "Text",
-  plaintext: "Text",
 };
 
 function extractLanguage(children: React.ReactNode): string | null {
@@ -70,7 +40,7 @@ export function CodeBlock({ children, className, ...rest }: CodeBlockProps) {
   const dataLang = rest["data-language"];
   const childLang = extractLanguage(children);
   const lang = dataLang ?? childLang;
-  const label = lang ? LANG_LABEL[lang.toLowerCase()] ?? lang.toUpperCase() : null;
+  const label = langLabel(lang);
 
   const copy = async () => {
     const text = preRef.current?.innerText ?? extractText(children);

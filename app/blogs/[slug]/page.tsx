@@ -9,11 +9,12 @@ import {
   readBlog,
 } from "@/lib/blogs";
 import { BlogJsonLd } from "@/components/seo/BlogJsonLd";
+import { renderBlogMarkdown } from "@/components/blogs/BlogMarkdown";
 import { ReadingProgress } from "@/components/blogs/ReadingProgress";
 import { PostTOC } from "@/components/blogs/PostTOC";
 import { PostShare } from "@/components/blogs/PostShare";
 import { PostNav } from "@/components/blogs/PostNav";
-import { SITE_URL } from "@/lib/seo";
+import { SITE_AUTHOR, SITE_URL } from "@/lib/seo";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -30,26 +31,63 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!blog) return {};
   const url = `${SITE_URL}/blogs/${slug}`;
   const modified = blog.frontmatter.updated ?? blog.frontmatter.date;
+  const authorName = blog.frontmatter.author ?? SITE_AUTHOR;
+  // Per-post OG bound by Next.js metadata convention. We set the
+  // absolute URL explicitly so unfurlers (LinkedIn, Slack, X) ship the
+  // canonical OG even when metadataBase changes per environment.
+  const ogImage = `${url}/opengraph-image`;
+  // Pick a single article section. Schema.org expects a string, not an
+  // array — first tag is the most specific, fall back to a generic
+  // "Engineering" if the post has no tags.
+  const section = blog.frontmatter.tags?.[0] ?? "Engineering";
   return {
     title: blog.frontmatter.title,
     description: blog.frontmatter.description,
     keywords: blog.frontmatter.tags,
-    authors: [{ name: blog.frontmatter.author ?? "Rahul Gupta" }],
+    category: "Technology",
+    authors: [{ name: authorName, url: SITE_URL }],
     alternates: { canonical: url },
+    // Posts are explicitly indexable (the inheritance from the root
+    // layout is fine, but explicit signal here pins the rich-result
+    // hints — `max-image-preview: large` ensures Google surfaces the
+    // 1200×630 OG render rather than a thumbnail crop).
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
     openGraph: {
       type: "article",
       url,
       title: blog.frontmatter.title,
       description: blog.frontmatter.description,
+      siteName: "Rahul Gupta — Portfolio",
       publishedTime: blog.frontmatter.date,
       modifiedTime: modified,
-      authors: [blog.frontmatter.author ?? "Rahul Gupta"],
+      authors: [authorName],
+      section,
       tags: blog.frontmatter.tags,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: blog.frontmatter.title,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: blog.frontmatter.title,
       description: blog.frontmatter.description,
+      creator: "@notsonoobie",
+      images: [ogImage],
     },
   };
 }
@@ -62,7 +100,11 @@ export default async function BlogPostPage({ params }: PageProps) {
   const summaries = await getAllBlogSummaries();
   const { previous, next } = getAdjacentBlogs(summaries, slug);
 
-  const { default: MDXContent, frontmatter, toc, readingTime, wordCount } = blog;
+  const { bodyMd, frontmatter, readingTime, wordCount } = blog;
+  // Single pipeline pass: returns the rendered React tree AND the
+  // table-of-contents headings. PostTOC needs the latter; the article
+  // section renders the former.
+  const { body, toc } = await renderBlogMarkdown(bodyMd);
   const postUrl = `${SITE_URL}/blogs/${slug}`;
 
   return (
@@ -150,9 +192,7 @@ export default async function BlogPostPage({ params }: PageProps) {
       <section className="relative">
         <div className="mx-auto max-w-6xl px-6 md:px-10 py-16 md:py-20 xl:flex xl:gap-12 xl:justify-center">
           <article className="max-w-3xl mx-auto xl:mx-0 min-w-0">
-            <div className="blog-prose">
-              <MDXContent />
-            </div>
+            <div className="blog-prose">{body}</div>
 
             <footer className="mt-16 py-8 border-t border-line">
               <div className="flex flex-wrap items-center justify-between gap-4 font-mono text-[11px] text-ink-dim">

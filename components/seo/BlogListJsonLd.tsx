@@ -17,8 +17,24 @@ export function BlogListJsonLd({ posts }: { posts: BlogSummary[] }) {
     description:
       "Essays on distributed systems, agentic AI, and building enterprise-grade products at BFSI scale.",
     inLanguage: "en",
-    author: { "@id": `${SITE_URL}#person`, "@type": "Person", name: SITE_AUTHOR },
-    publisher: { "@id": `${SITE_URL}#person`, "@type": "Person", name: SITE_AUTHOR },
+    image: {
+      "@type": "ImageObject",
+      url: `${blogsUrl}/opengraph-image`,
+      width: 1200,
+      height: 630,
+    },
+    author: {
+      "@id": `${SITE_URL}#person`,
+      "@type": "Person",
+      name: SITE_AUTHOR,
+      url: SITE_URL,
+    },
+    publisher: {
+      "@id": `${SITE_URL}#person`,
+      "@type": "Person",
+      name: SITE_AUTHOR,
+      url: SITE_URL,
+    },
     blogPost: posts.map((p) => ({
       "@type": "BlogPosting",
       "@id": `${SITE_URL}/blogs/${p.slug}#post`,
@@ -28,6 +44,7 @@ export function BlogListJsonLd({ posts }: { posts: BlogSummary[] }) {
       datePublished: p.frontmatter.date,
       dateModified: p.frontmatter.updated ?? p.frontmatter.date,
       keywords: p.frontmatter.tags?.join(", "),
+      image: `${SITE_URL}/blogs/${p.slug}/opengraph-image`,
       author: { "@id": `${SITE_URL}#person` },
     })),
   };

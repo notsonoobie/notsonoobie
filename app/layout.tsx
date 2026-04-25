@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { LenisProvider } from "@/components/motion/LenisProvider";
 import { ScrollToTopOnRoute } from "@/components/motion/ScrollToTopOnRoute";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { UserMenu } from "@/components/auth/UserMenu";
 import {
   SITE_AUTHOR,
   SITE_DESCRIPTION,
@@ -69,12 +70,26 @@ export const metadata: Metadata = {
     username: "notsonoobie",
     gender: "male",
     countryName: "India",
+    // Explicit og:image with dimensions/alt/type. Next.js auto-binds
+    // app/opengraph-image.tsx, but explicit fields ensure unfurlers
+    // (LinkedIn, Slack, Discord, X) ship the canonical preview without
+    // re-fetching to determine dimensions.
+    images: [
+      {
+        url: `${SITE_URL}/opengraph-image`,
+        width: 1200,
+        height: 630,
+        alt: "Rahul Gupta — Senior Software Engineer · Solutions Architect · Agentic AI",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE_DEFAULT,
     description: SITE_DESCRIPTION,
     creator: "@notsonoobie",
+    site: "@notsonoobie",
     images: [`${SITE_URL}/opengraph-image`],
   },
   robots: {
@@ -126,6 +141,9 @@ export default function RootLayout({
         >
           Skip to content
         </a>
+        {/* Client-only — fetches /api/auth/me on mount so the surrounding
+            layout stays statically renderable for blogs / home / contact. */}
+        <UserMenu />
         <LenisProvider>
           <ScrollToTopOnRoute />
           {children}

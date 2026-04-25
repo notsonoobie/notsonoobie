@@ -355,4 +355,10 @@ export const navGroups: NavGroup[] = [
     href: "/blogs",
     items: [],
   },
+  {
+    id: "courses",
+    label: "courses/",
+    href: "/courses",
+    items: [],
+  },
 ];

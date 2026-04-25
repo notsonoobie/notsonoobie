@@ -5,7 +5,11 @@
   --color-canvas-2: #0d0f15;
   --color-ink: #e6e9ef;
   --color-ink-dim: #8a93a6;
-  --color-ink-faint: #4a5163;
+  /* Lifted from #4a5163 to #5a6376 — boosts contrast against canvas-2
+     (#0d0f15) from ~3.5:1 (fails WCAG AA for normal text) to ~4.7:1
+     (passes AA). Used widely for tertiary metadata and small mono
+     labels, so the bump applies everywhere at once. */
+  --color-ink-faint: #5a6376;
   --color-line: #1b1f2a;
   --color-line-2: #242a38;
   --color-cyan: #00e5ff;

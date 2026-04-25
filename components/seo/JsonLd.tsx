@@ -1,5 +1,5 @@
 import { profile, products, experience, skills } from "@/lib/data";
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, SITE_KEYWORDS } from "@/lib/seo";
 
 export function JsonLd() {
   const person = {
@@ -8,12 +8,30 @@ export function JsonLd() {
     "@id": `${SITE_URL}#person`,
     name: profile.name,
     alternateName: "Rahul",
+    givenName: "Rahul",
+    familyName: "Gupta",
+    gender: "https://schema.org/Male",
     url: SITE_URL,
-    image: `${SITE_URL}/opengraph-image`,
+    // Pin the Person to the home ProfilePage so search engines treat
+    // the home URL as the canonical surface for this entity. Without
+    // mainEntityOfPage, Google sometimes selects a deeper URL (e.g.
+    // /blogs/<slug>) as the Person's canonical "page".
+    mainEntityOfPage: { "@type": "ProfilePage", "@id": `${SITE_URL}#profile` },
+    // Image as ImageObject so Google/LinkedIn pick up dimensions
+    // alongside the URL — Knowledge Panel surfaces favour
+    // ImageObject over a flat string.
+    image: {
+      "@type": "ImageObject",
+      url: `${SITE_URL}/opengraph-image`,
+      width: 1200,
+      height: 630,
+    },
     jobTitle: "Senior Software Engineer · Solutions Architect · Agentic AI",
     description: SITE_DESCRIPTION,
     email: `mailto:${profile.email}`,
     telephone: profile.phone,
+    nationality: { "@type": "Country", name: "India" },
+    knowsLanguage: ["en", "hi"],
     address: {
       "@type": "PostalAddress",
       addressLocality: "Mumbai",
@@ -49,12 +67,37 @@ export function JsonLd() {
     "@id": `${SITE_URL}#website`,
     url: SITE_URL,
     name: SITE_NAME,
+    alternateName: "Rahul Gupta",
     description: SITE_DESCRIPTION,
     inLanguage: "en",
+    keywords: SITE_KEYWORDS.join(", "),
+    image: {
+      "@type": "ImageObject",
+      url: `${SITE_URL}/opengraph-image`,
+      width: 1200,
+      height: 630,
+    },
     author: { "@id": `${SITE_URL}#person` },
     publisher: { "@id": `${SITE_URL}#person` },
+    // SearchAction powers Google's sitelinks searchbox — when the site
+    // ranks for branded queries, Google may render an internal search
+    // box right in the SERP that targets `/blogs?q=…`. Currently the
+    // only searchable surface is /blogs (FTS + trigram fuzzy).
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/blogs?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
   };
 
+  // Build-time stamp for `dateModified` — refreshed on every deploy.
+  // Static date for `dateCreated` (the day the portfolio went live).
+  // Both feed the "freshness" signal Google uses for ProfilePage
+  // ranking against time-sensitive queries.
+  const buildDate = new Date().toISOString();
   const portfolio = {
     "@context": "https://schema.org",
     "@type": "ProfilePage",
@@ -62,8 +105,18 @@ export function JsonLd() {
     url: SITE_URL,
     name: `${profile.name} — Portfolio`,
     description: SITE_DESCRIPTION,
+    inLanguage: "en",
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: `${SITE_URL}/opengraph-image`,
+      width: 1200,
+      height: 630,
+    },
+    dateCreated: "2025-01-01",
+    dateModified: buildDate,
     mainEntity: { "@id": `${SITE_URL}#person` },
     about: { "@id": `${SITE_URL}#person` },
+    isPartOf: { "@id": `${SITE_URL}#website` },
   };
 
   const productItems = {

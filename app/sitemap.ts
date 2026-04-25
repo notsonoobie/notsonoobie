@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 import { getAllBlogSummaries } from "@/lib/blogs";
+import {
+  getAllCertificatesPublic,
+  getAllCoursesPublic,
+} from "@/lib/courses/queries";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
@@ -14,6 +18,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const blogList = {
     url: `${SITE_URL}/blogs`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.9,
+  };
+
+  const coursesList = {
+    url: `${SITE_URL}/courses`,
     lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.9,
@@ -33,5 +44,52 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [home, blogList, ...resumeEntries, ...blogEntries];
+  // Courses — fetched at build/render time. Failures degrade gracefully
+  // (sitemap still emits, just without the course entries).
+  //
+  // Episodes are intentionally NOT listed: they're auth-gated
+  // (`robots: noindex` + `Disallow: /courses/*/*` in robots.txt).
+  // Sitemap + noindex is contradictory — Google's docs explicitly say
+  // not to include noindex pages. Crawlers still discover episodes via
+  // the course detail page's lesson list, so we don't lose discovery.
+  let courseEntries: MetadataRoute.Sitemap = [];
+  try {
+    const courses = await getAllCoursesPublic();
+    courseEntries = courses.map((c) => ({
+      url: `${SITE_URL}/courses/${c.slug}`,
+      lastModified: new Date(c.updatedAt),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    }));
+  } catch (err) {
+    console.error("[sitemap] courses fetch failed", err);
+  }
+
+  // Public certificates — issued credentials live at unguessable URLs
+  // (`/certificates/cert_<id>`), but they're meant to be shared on
+  // LinkedIn / résumés. Listing them in the sitemap so search engines
+  // discover them too. Low priority because each cert is leaf-level
+  // content with no outbound links.
+  let certEntries: MetadataRoute.Sitemap = [];
+  try {
+    const certs = await getAllCertificatesPublic();
+    certEntries = certs.map((c) => ({
+      url: `${SITE_URL}/certificates/${c.id}`,
+      lastModified: new Date(c.issuedAt),
+      changeFrequency: "yearly" as const,
+      priority: 0.5,
+    }));
+  } catch (err) {
+    console.error("[sitemap] certificates fetch failed", err);
+  }
+
+  return [
+    home,
+    blogList,
+    coursesList,
+    ...resumeEntries,
+    ...blogEntries,
+    ...courseEntries,
+    ...certEntries,
+  ];
 }

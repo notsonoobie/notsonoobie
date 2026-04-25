@@ -1,0 +1,437 @@
+/* Video.js base + minimal overrides — all custom UI lives under .aw-player
+   and uses Lucide icons in JSX. None of Video.js's stock controls render. */
+
+@import "video.js/dist/video-js.css";
+
+/* ─── Hide Video.js stock chrome ─── */
+
+.aw-player .video-js {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background: #050608;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.aw-player .vjs-control-bar,
+.aw-player .vjs-big-play-button,
+.aw-player .vjs-loading-spinner {
+  display: none !important;
+}
+
+/* Poster (decorative banner) covers the player area */
+.aw-player .vjs-poster {
+  background-size: cover !important;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+.aw-player .vjs-poster img {
+  object-fit: cover;
+  object-position: center center;
+}
+/* Actual <video> element uses contain so different aspect ratios
+   letterbox cleanly instead of cropping content. */
+.aw-player video {
+  object-fit: contain;
+}
+
+/* ─── Container ─── */
+
+.aw-player {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #050608;
+  cursor: default;
+}
+
+.aw-player[data-active="false"][data-paused="false"] {
+  cursor: none;
+}
+
+/* Fullscreen — full viewport, no rounded corners.
+   Critically: force the video wrapper to absolute-fill the player.
+   Without this, `.video-js { height: 100% }` resolves to 0 because
+   the wrapper itself has no explicit height (it normally gets sized
+   by its child via Video.js's fluid padding-top trick). */
+.aw-player:fullscreen {
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+}
+.aw-player:fullscreen .aw-video-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.aw-player:fullscreen .video-js {
+  border-radius: 0;
+  width: 100% !important;
+  height: 100% !important;
+  padding-top: 0 !important;
+}
+.aw-player:fullscreen .video-js video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Video wrapper — captures click-to-toggle */
+.aw-video-wrap {
+  cursor: pointer;
+}
+
+/* ─── Glass dim overlay — paused or user-active ─── */
+
+.aw-dim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  background-color: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(120%);
+}
+
+.aw-player[data-active="true"] .aw-dim {
+  opacity: 1;
+}
+
+/* ─── Title overlay (top) ─── */
+
+.aw-title {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  padding: 1.1rem 1.5rem;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.aw-player[data-active="true"] .aw-title {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.aw-title-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+
+.aw-title h3 {
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+/* ─── Center play button — outlined ─── */
+
+.aw-center-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  width: 5.5rem;
+  height: 5.5rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 220ms ease,
+    background-color 220ms ease,
+    color 220ms ease;
+}
+
+/* Optical centering for the play triangle */
+.aw-center-play > svg {
+  margin-left: 4px;
+}
+
+.aw-center-play:hover,
+.aw-center-play:focus-visible {
+  transform: translate(-50%, -50%) scale(1.08);
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+  background-color: rgba(0, 0, 0, 0.35);
+  outline: none;
+}
+
+/* ─── Buffering spinner ─── */
+
+.aw-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* ─── Bottom controls ─── */
+
+.aw-controls {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 6;
+  padding: 0.6rem 1rem 0.85rem;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.35) 65%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+  pointer-events: none;
+}
+
+.aw-player[data-active="true"] .aw-controls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Slider row */
+
+.aw-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding-bottom: 0.4rem;
+}
+
+.aw-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  min-width: 2.75rem;
+}
+
+.aw-time-right {
+  text-align: right;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.aw-slider {
+  flex: 1 1 auto;
+  position: relative;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.aw-slider-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  transition: height 160ms ease;
+}
+
+.aw-slider:hover .aw-slider-track {
+  height: 6px;
+}
+
+.aw-slider-buffered {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: rgba(255, 255, 255, 0.28);
+  border-radius: 9999px;
+}
+
+.aw-slider-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: var(--color-cyan);
+  background-image: linear-gradient(to right, #7cf0ff, var(--color-cyan));
+  border-radius: 9999px;
+}
+
+.aw-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background-color: var(--color-cyan);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.aw-slider:hover .aw-slider-thumb {
+  opacity: 1;
+}
+
+/* Scrub tooltip */
+
+.aw-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background-color: rgba(13, 15, 21, 0.96);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.5);
+}
+
+/* Buttons row */
+
+.aw-buttons-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.aw-buttons-left,
+.aw-buttons-right {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.aw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.aw-btn:hover,
+.aw-btn:focus-visible {
+  color: var(--color-cyan);
+  background-color: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+/* ─── Volume — wrapper + popout ─── */
+
+.aw-volume-wrap {
+  position: relative;
+}
+
+.aw-volume-popout {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Visible card surface */
+  background-color: rgba(13, 15, 21, 0.96);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 0.85rem 0.65rem;
+  margin-bottom: 0.5rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+  /* Bridge — invisible spacer below the card so cursor stays in hover
+     zone while traveling between button and card. */
+}
+.aw-volume-popout::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 -0.5rem 0;
+}
+
+/* ─── Vertical volume slider ─── */
+
+.aw-vol {
+  position: relative;
+  width: 1.25rem;
+  height: 6.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.aw-vol-track {
+  position: relative;
+  width: 4px;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+
+.aw-vol-fill {
+  position: absolute;
+  inset: auto 0 0 0;
+  background-color: var(--color-cyan);
+  background-image: linear-gradient(to top, #7cf0ff, var(--color-cyan));
+  border-radius: 9999px;
+}
+
+.aw-vol-thumb {
+  position: absolute;
+  left: 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--color-cyan);
+  transform: translateX(-50%);
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Reduced motion ─── */
+
+@media (prefers-reduced-motion: reduce) {
+  .aw-dim,
+  .aw-title,
+  .aw-center-play,
+  .aw-controls,
+  .aw-slider-track,
+  .aw-slider-thumb {
+    transition: none !important;
+  }
+}

@@ -132,8 +132,10 @@ export function SidebarNav() {
               <span>{group.label}</span>
             </Link>
 
-            {/* Sub-items */}
-            {group.items.length > 0 && (
+            {/* Sub-items — only render when this group matches the current
+                route. Keeps the rail tight on /blogs and /courses where
+                portfolio anchor links would otherwise clutter the sidebar. */}
+            {group.items.length > 0 && isActiveGroup && (
               <ul className="mt-1 ml-1.5 pl-2 border-l border-line space-y-0.5">
                 {group.items.map((item) => {
                   const meta = ICON_LABEL[item.icon];
