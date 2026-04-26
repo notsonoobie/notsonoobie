@@ -1,5 +1,5 @@
-import "server-only";
 import { GoogleGenAI } from "@google/genai";
+import "server-only";
 
 /**
  * Gemini client + helpers for the portfolio assistant.
@@ -11,7 +11,7 @@ import { GoogleGenAI } from "@google/genai";
  *      per call) and by the chat API (one call per user message).
  *
  *   2. `streamChat({ system, messages })` — streams a Gemini
- *      `gemini-2.5-flash` response back as an async iterable of
+ *      `gemini-3-flash-preview` response back as an async iterable of
  *      text deltas. Cheap, fast, supports tool use later if we
  *      want to expand beyond pure RAG.
  *
@@ -22,7 +22,7 @@ import { GoogleGenAI } from "@google/genai";
  */
 
 export const EMBEDDING_MODEL = "gemini-embedding-001";
-export const CHAT_MODEL = "gemini-2.5-flash";
+export const CHAT_MODEL = "gemini-3-flash-preview";
 export const EMBEDDING_DIM = 768;
 
 /**
@@ -103,7 +103,7 @@ export async function embedText(
 export async function* streamChat(opts: {
   system: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
-  /** Optional override; defaults to gemini-2.5-flash. */
+  /** Optional override; defaults to gemini-3-flash-preview. */
   model?: string;
   /** Hard cap on output tokens. Default 1024 — chats should be tight. */
   maxOutputTokens?: number;

@@ -1,15 +1,15 @@
+import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { GoogleGenAI } from "@google/genai";
 
-import { getSupabaseServer } from "@/lib/supabase/server";
+import { profile } from "@/lib/data";
 import {
   CHAT_MODEL,
   EMBEDDING_DIM,
   EMBEDDING_MODEL,
   isGeminiConfigured,
 } from "@/lib/gemini";
-import { profile } from "@/lib/data";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +19,11 @@ export const dynamic = "force-dynamic";
 // ─────────────────────────────────────────────────────────────────
 const MAX_MESSAGES_PER_DAY = 25;
 const MAX_INPUT_CHARS = 2_000;
-const MAX_HISTORY = 20;            // most recent N messages we keep in context
-const TOP_K_GENERAL = 12;          // hybrid global retrieval target
-const TOP_K_PAGE = 8;               // hybrid scoped retrieval target
-const HYBRID_FETCH = 30;            // candidates fetched per list before RRF
-const TOTAL_CHUNK_BUDGET = 16;     // hard cap after merge + diversity
+const MAX_HISTORY = 20; // most recent N messages we keep in context
+const TOP_K_GENERAL = 12; // hybrid global retrieval target
+const TOP_K_PAGE = 8; // hybrid scoped retrieval target
+const HYBRID_FETCH = 30; // candidates fetched per list before RRF
+const TOTAL_CHUNK_BUDGET = 16; // hard cap after merge + diversity
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const rateLimitState = new Map<string, { count: number; resetAt: number }>();
@@ -35,10 +35,15 @@ function getClientIp(request: Request): string | null {
 
 function hashIp(ip: string | null): string {
   const salt = process.env.APP_SECRET ?? "";
-  return createHash("sha256").update(`${ip ?? "unknown"}|${salt}`).digest("hex");
+  return createHash("sha256")
+    .update(`${ip ?? "unknown"}|${salt}`)
+    .digest("hex");
 }
 
-function checkRateLimit(ipHash: string): { allowed: boolean; remaining: number } {
+function checkRateLimit(ipHash: string): {
+  allowed: boolean;
+  remaining: number;
+} {
   const now = Date.now();
   const entry = rateLimitState.get(ipHash);
   if (!entry || entry.resetAt < now) {
@@ -78,7 +83,11 @@ function pathnameToSource(pathname: string): ResolvedSource | null {
   }
   const blogMatch = clean.match(/^\/blogs\/([^/]+)$/);
   if (blogMatch) {
-    return { source_type: "blog", source_key: blogMatch[1]!, describe: `the blog post at /blogs/${blogMatch[1]}` };
+    return {
+      source_type: "blog",
+      source_key: blogMatch[1]!,
+      describe: `the blog post at /blogs/${blogMatch[1]}`,
+    };
   }
   const epMatch = clean.match(/^\/courses\/([^/]+)\/([^/]+)$/);
   if (epMatch) {
@@ -91,7 +100,11 @@ function pathnameToSource(pathname: string): ResolvedSource | null {
   }
   const courseMatch = clean.match(/^\/courses\/([^/]+)$/);
   if (courseMatch) {
-    return { source_type: "course", source_key: courseMatch[1]!, describe: `the course at /courses/${courseMatch[1]}` };
+    return {
+      source_type: "course",
+      source_key: courseMatch[1]!,
+      describe: `the course at /courses/${courseMatch[1]}`,
+    };
   }
   return null;
 }
@@ -122,20 +135,23 @@ function buildSystemPrompt(opts: {
 
   const pageBlock = pageContext
     ? `The user is currently viewing: "${pageContext.title ?? pageContext.pathname}"${pageContext.url ? ` (${pageContext.url})` : ""}.${
-        resolvedSource ? `\nThis page corresponds to ${resolvedSource.describe} in your knowledge base. The chunks marked CURRENT-PAGE below are from this exact page.` : ""
+        resolvedSource
+          ? `\nThis page corresponds to ${resolvedSource.describe} in your knowledge base. The chunks marked CURRENT-PAGE below are from this exact page.`
+          : ""
       }
 When the user says "this", "this post", "this blog", "this course", "this episode", "the article", or any deictic reference, assume they mean the page above unless the conversation makes clear otherwise.`
     : "";
 
-  const contextBlock = retrieved.length === 0
-    ? "(no relevant context retrieved — only answer if the question is about general knowledge that doesn't require facts about Rahul; otherwise tell the user you don't have that information.)"
-    : retrieved
-        .map((c, i) => {
-          const tag = c.isPageContext ? " [CURRENT-PAGE]" : "";
-          const typeTag = ` [${c.source_type}]`;
-          return `[${i + 1}]${tag}${typeTag} ${c.title}${c.url ? ` (${c.url})` : ""}\n${c.content}`;
-        })
-        .join("\n\n---\n\n");
+  const contextBlock =
+    retrieved.length === 0
+      ? "(no relevant context retrieved — only answer if the question is about general knowledge that doesn't require facts about Rahul; otherwise tell the user you don't have that information.)"
+      : retrieved
+          .map((c, i) => {
+            const tag = c.isPageContext ? " [CURRENT-PAGE]" : "";
+            const typeTag = ` [${c.source_type}]`;
+            return `[${i + 1}]${tag}${typeTag} ${c.title}${c.url ? ` (${c.url})` : ""}\n${c.content}`;
+          })
+          .join("\n\n---\n\n");
 
   return `You are श्रीman ("Shreeman" — Sanskrit for "honoured one"), Rahul Gupta's portfolio assistant. Your job is to answer questions about Rahul accurately and concretely, using only the retrieved context below as your source of truth.
 
@@ -206,7 +222,9 @@ function parseBody(raw: unknown): ChatBody | null {
   }
   if (out.length === 0) return null;
   if (out[out.length - 1]?.role !== "user") return null;
-  const pageContext = parsePageContext((raw as Record<string, unknown>).pageContext);
+  const pageContext = parsePageContext(
+    (raw as Record<string, unknown>).pageContext,
+  );
   return { messages: out.slice(-MAX_HISTORY), pageContext };
 }
 
@@ -291,7 +309,7 @@ function mergeWithDiversity(
 // HyDE helpers
 // ─────────────────────────────────────────────────────────────────
 
-const HYDE_MODEL = "gemini-2.5-flash-lite";
+const HYDE_MODEL = "gemini-3-flash-preview";
 const HYDE_PROMPT = (q: string) =>
   `You generate hypothetical retrieval queries. Write a single, factual-sounding sentence that would be a plausible answer to the user's question, drawn from a knowledge base about Rahul Gupta — a senior engineer turned VP Digitalization at Applied Cloud Computing, who writes about distributed systems and agentic AI, builds enterprise products (Atlas API Manager, Atlas AI Agent Studio, etc.), and teaches courses on AI agents.
 
@@ -467,11 +485,15 @@ export async function POST(request: Request) {
         })
       : Promise.resolve({ data: [], error: null } as const);
 
-    const [{ data: generalData, error: generalErr }, { data: pageData, error: pageErr }] =
-      await Promise.all([generalP, pageP]);
+    const [
+      { data: generalData, error: generalErr },
+      { data: pageData, error: pageErr },
+    ] = await Promise.all([generalP, pageP]);
 
-    if (generalErr) console.warn("[assistant] hybrid general RPC failed", generalErr);
-    if (pageErr) console.warn("[assistant] hybrid page-scoped RPC failed", pageErr);
+    if (generalErr)
+      console.warn("[assistant] hybrid general RPC failed", generalErr);
+    if (pageErr)
+      console.warn("[assistant] hybrid page-scoped RPC failed", pageErr);
 
     retrieved = mergeWithDiversity(
       (pageData as RetrievedChunk[]) ?? [],
@@ -538,7 +560,9 @@ export async function POST(request: Request) {
           ),
         );
       }
-      controller.enqueue(encoder.encode(JSON.stringify({ type: "done" }) + "\n"));
+      controller.enqueue(
+        encoder.encode(JSON.stringify({ type: "done" }) + "\n"),
+      );
       controller.close();
     },
   });

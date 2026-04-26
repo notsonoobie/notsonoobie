@@ -1,6 +1,6 @@
-import "server-only";
-import matter from "gray-matter";
 import type { GoogleGenAI } from "@google/genai";
+import matter from "gray-matter";
+import "server-only";
 import type { Topic } from "./topic";
 
 /**
@@ -42,7 +42,7 @@ import type { Topic } from "./topic";
 // output sidesteps both: no schema needed, no thinking budget
 // contention, and the body content can contain any character class
 // without breaking the parse.
-const WRITER_MODEL = "gemma-4-26b-a4b-it";
+const WRITER_MODEL = "gemini-3.1-pro-preview";
 
 export type DraftPost = {
   title: string;
@@ -180,7 +180,9 @@ export function checkQuality(body: string): QualityIssue[] {
   // (repairBody strips this automatically before quality check, so
   // it should never trip in practice. Keeping the gate for safety.)
   if (/^#\s+[^#]/m.test(body)) {
-    issues.push(`Body still contains a top-level # heading after auto-repair. Strip every line that begins with a single # at the start of a line; the page renders the title from the DB row.`);
+    issues.push(
+      `Body still contains a top-level # heading after auto-repair. Strip every line that begins with a single # at the start of a line; the page renders the title from the DB row.`,
+    );
   }
 
   // 3. Section count — at least 4 `##` headers.
@@ -199,7 +201,9 @@ export function checkQuality(body: string): QualityIssue[] {
   for (const h of headerLines) {
     for (const pattern of BANNED_HEADERS) {
       if (pattern.test(h)) {
-        issues.push(`Banned section heading: "${h}". Replace with a content-bearing title.`);
+        issues.push(
+          `Banned section heading: "${h}". Replace with a content-bearing title.`,
+        );
         break;
       }
     }
@@ -209,15 +213,21 @@ export function checkQuality(body: string): QualityIssue[] {
   // virtually always include code or YAML/SQL.
   const fences = body.match(/```/g) ?? [];
   if (fences.length < 2) {
-    issues.push(`Body has no fenced code block. Include at least one with a language fence.`);
+    issues.push(
+      `Body has no fenced code block. Include at least one with a language fence.`,
+    );
   }
 
   // 6. Length window — proxy via char count.
   if (body.length < 4500) {
-    issues.push(`Body too short (${body.length} chars; need >= 4500 ≈ 1500 words).`);
+    issues.push(
+      `Body too short (${body.length} chars; need >= 4500 ≈ 1500 words).`,
+    );
   }
   if (body.length > 14000) {
-    issues.push(`Body too long (${body.length} chars; trim to <= 14000 ≈ 2300 words).`);
+    issues.push(
+      `Body too long (${body.length} chars; trim to <= 14000 ≈ 2300 words).`,
+    );
   }
 
   return issues;
@@ -329,10 +339,7 @@ function buildSystem(samples: VoiceSample[], retryFeedback: string[]): string {
 # Real openings from your past posts (match this voice exactly)
 
 ${samples
-  .map(
-    (s, i) =>
-      `### Sample ${i + 1} — "${s.title}"\n\n${s.opening.trim()}`,
-  )
+  .map((s, i) => `### Sample ${i + 1} — "${s.title}"\n\n${s.opening.trim()}`)
   .join("\n\n---\n\n")}`;
 
   const feedbackBlock =
@@ -540,7 +547,9 @@ export async function writeBlog(
   // Second pass with explicit feedback. Retry prompt is worded to
   // preserve length/depth — the model has a tendency to over-correct
   // by shrinking when given a single-issue rejection.
-  const second = repairDraft(await callWriter(gemini, topic, voiceSamples, issues));
+  const second = repairDraft(
+    await callWriter(gemini, topic, voiceSamples, issues),
+  );
   const secondIssues = checkQuality(second.body_md);
 
   if (secondIssues.length === 0) {

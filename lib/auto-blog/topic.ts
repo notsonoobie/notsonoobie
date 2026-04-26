@@ -1,6 +1,6 @@
-import "server-only";
 import type { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import "server-only";
 
 /**
  * Topic picker — first phase of the daily auto-blog cron.
@@ -42,7 +42,7 @@ export type Topic = {
 
 type CorpusEntry = { title: string; description: string; tags: string[] };
 
-const TOPIC_MODEL = "gemini-2.5-flash";
+const TOPIC_MODEL = "gemini-3-flash-preview";
 
 // Topic verticals Rahul actually writes in. Steers the picker away
 // from generic "intro to X" and toward the categories the corpus
@@ -159,7 +159,9 @@ function validateTopic(parsed: unknown): Topic {
     );
   }
   if (out.angle!.length < 30) {
-    throw new Error(`topic.angle too short (got ${out.angle!.length} chars; need >= 30)`);
+    throw new Error(
+      `topic.angle too short (got ${out.angle!.length} chars; need >= 30)`,
+    );
   }
   return out as Topic;
 }
@@ -220,7 +222,10 @@ async function callGemini(
   });
   const text = gen.text ?? "";
   const finishReason = gen.candidates?.[0]?.finishReason;
-  return { text, finishReason: finishReason ? String(finishReason) : undefined };
+  return {
+    text,
+    finishReason: finishReason ? String(finishReason) : undefined,
+  };
 }
 
 async function attemptPick(
@@ -230,7 +235,11 @@ async function attemptPick(
   let lastErr: unknown = null;
   for (const grounded of [true, false]) {
     try {
-      const { text, finishReason } = await callGemini(gemini, userPrompt, grounded);
+      const { text, finishReason } = await callGemini(
+        gemini,
+        userPrompt,
+        grounded,
+      );
       if (!text.trim()) {
         throw new Error(
           `empty model response (grounding=${grounded}, finishReason=${finishReason ?? "unknown"})`,
@@ -243,7 +252,9 @@ async function attemptPick(
     }
   }
   const message = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  throw new Error(`pickTopic: both grounded and ungrounded calls failed: ${message}`);
+  throw new Error(
+    `pickTopic: both grounded and ungrounded calls failed: ${message}`,
+  );
 }
 
 export async function pickTopic(
@@ -262,7 +273,8 @@ export async function pickTopic(
   }
 
   const corpus: CorpusEntry[] = (
-    (data as { title: string; description: string; tags: string[] | null }[]) ?? []
+    (data as { title: string; description: string; tags: string[] | null }[]) ??
+    []
   ).map((r) => ({
     title: r.title,
     description: r.description,
