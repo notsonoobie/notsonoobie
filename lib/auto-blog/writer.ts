@@ -128,6 +128,27 @@ const BANNED_HEADERS = [
 export type QualityIssue = string;
 
 /**
+ * Auto-repair common LLM reflex issues that don't need a regenerate.
+ *
+ * Currently handles:
+ *   - Leading top-level `# Title` line. Models add this constantly
+ *     even when explicitly told not to — markdown muscle-memory.
+ *     Stripping it ourselves saves a full retry on what is purely
+ *     a formatting nit.
+ *
+ * Anything we can't safely repair (banned phrases, missing
+ * sections, short length) still goes through the regenerate path —
+ * those changes affect meaning and need the model.
+ */
+export function repairBody(body: string): string {
+  let repaired = body.trim();
+  // Strip ONE leading `# Heading` line if present. Use `^# +` (one
+  // hash, then space) so we don't strip `## Section` headers.
+  repaired = repaired.replace(/^#\s+[^\n]+\n+/, "");
+  return repaired.trim();
+}
+
+/**
  * Run the quality gate. Returns the list of issues found — empty
  * array = passes. Issues are short human-phrased strings so we can
  * paste them back to the model verbatim in the retry prompt.
@@ -144,8 +165,10 @@ export function checkQuality(body: string): QualityIssue[] {
   }
 
   // 2. Top-level `# Title` line — page renders title from DB row.
-  if (/^# [^#]/m.test(body)) {
-    issues.push(`Body starts with a top-level # heading. Don't include the title — strip it; the page renders the title from the DB row.`);
+  // (repairBody strips this automatically before quality check, so
+  // it should never trip in practice. Keeping the gate for safety.)
+  if (/^#\s+[^#]/m.test(body)) {
+    issues.push(`Body still contains a top-level # heading after auto-repair. Strip every line that begins with a single # at the start of a line; the page renders the title from the DB row.`);
   }
 
   // 3. Section count — at least 4 `##` headers.
@@ -290,9 +313,11 @@ ${samples
       ? ""
       : `
 
-# Your previous draft was REJECTED. Fix these issues and try again:
+# Your previous draft was almost there — fix these issues and write the new version
 
-${retryFeedback.map((f, i) => `${i + 1}. ${f}`).join("\n")}`;
+${retryFeedback.map((f, i) => `${i + 1}. ${f}`).join("\n")}
+
+CRITICAL: Write a NEW full-length post on the same topic. Do NOT shrink the body, drop sections, or simplify. The previous version was the right depth and length (1700-2100 words, 5-7 sections, at least one fenced code block). The issues above are FORMATTING only — fix them while keeping everything else. A short, safe post will be rejected for being too short.`;
 
   return `${SYSTEM_BASE}${sampleBlock}${feedbackBlock}`;
 }
@@ -428,25 +453,31 @@ export type WriteResult = {
   qualityIssues: QualityIssue[];
 };
 
+function repairDraft(draft: DraftPost): DraftPost {
+  return { ...draft, body_md: repairBody(draft.body_md) };
+}
+
 export async function writeBlog(
   gemini: GoogleGenAI,
   topic: Topic,
   voiceSamples: VoiceSample[],
 ): Promise<WriteResult> {
   // First pass: no feedback.
-  let draft = await callWriter(gemini, topic, voiceSamples, []);
-  let issues = checkQuality(draft.body_md);
+  const first = repairDraft(await callWriter(gemini, topic, voiceSamples, []));
+  const issues = checkQuality(first.body_md);
 
   if (issues.length === 0) {
-    return { draft, attempts: 1, qualityIssues: [] };
+    return { draft: first, attempts: 1, qualityIssues: [] };
   }
 
   console.warn(
     `[auto-blog] writer attempt 1 failed quality gate (${issues.length} issues): ${issues.join(" / ")}`,
   );
 
-  // Second pass with explicit feedback.
-  const second = await callWriter(gemini, topic, voiceSamples, issues);
+  // Second pass with explicit feedback. Retry prompt is worded to
+  // preserve length/depth — the model has a tendency to over-correct
+  // by shrinking when given a single-issue rejection.
+  const second = repairDraft(await callWriter(gemini, topic, voiceSamples, issues));
   const secondIssues = checkQuality(second.body_md);
 
   if (secondIssues.length === 0) {
