@@ -103,11 +103,13 @@ async function loadVoiceSamples(
 // ─────────────────────────────────────────────────────────────────
 // Timeout wrapper — Gemini SDK doesn't expose per-call timeouts.
 // Without this a hung request would block until maxDuration (300s).
-// Per-phase 90s is generous (warm path is < 30s) but fences off the
-// pathological case.
+// Per-phase 180s budget covers the writer's worst case: initial
+// generation (~50s on Gemma) + quality-gate retry (~50s) + buffer.
+// Gemini-2.5 paths complete in <30s but the writer now runs against
+// Gemma which is noticeably slower per call.
 // ─────────────────────────────────────────────────────────────────
 
-const PHASE_TIMEOUT_MS = 90_000;
+const PHASE_TIMEOUT_MS = 180_000;
 
 function withTimeout<T>(label: string, promise: Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {

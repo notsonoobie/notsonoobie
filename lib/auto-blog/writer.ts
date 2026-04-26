@@ -1,5 +1,5 @@
 import "server-only";
-import { Type, type GoogleGenAI } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai";
 import type { Topic } from "./topic";
 
 /**
@@ -30,7 +30,13 @@ import type { Topic } from "./topic";
  *      so the anchor stays representative AND varied.
  */
 
-const WRITER_MODEL = "gemini-2.5-flash";
+// Gemma model served through the Gemini API surface. Open-weights
+// model — does NOT support Gemini-2.5-only features like
+// `responseSchema` (JSON mode) or `thinkingConfig`. We fall back to
+// text-mode generation + manual JSON extraction (same pattern as
+// topic.ts) and lean on prompt instructions to keep output well-
+// formed.
+const WRITER_MODEL = "gemma-4-26b-a4b-it";
 
 export type DraftPost = {
   title: string;
@@ -291,7 +297,22 @@ Don't include a top-level \`# Title\` line — the page renders the title from t
 - **title**: 40-90 chars. Sharp, claim-shaped. Bad: "A guide to Postgres MERGE". Good: "Why Postgres MERGE Won't Save Your Upsert Code".
 - **description**: 120-160 chars. One or two complete sentences. Lead with the substantive claim, never "Learn how to…" or "A guide to…".
 - **tags**: 3-5 tags. lowercase-hyphenated. Most specific tag first.
-- **body_md**: 1700-2100 words of markdown. No top-level # heading. 5-7 sections. At least one code block. Verdict-shaped close.`;
+- **body_md**: 1700-2100 words of markdown. No top-level # heading. 5-7 sections. At least one code block. Verdict-shaped close.
+
+# Output format (CRITICAL — read carefully)
+
+Return ONLY a single JSON object. No prose before it. No prose after it. No markdown fences (no \`\`\`json … \`\`\` wrapper).
+
+The object must have exactly these keys, all strings or string arrays:
+
+{
+  "title": "the post title",
+  "description": "the post description",
+  "tags": ["tag-one", "tag-two", "tag-three"],
+  "body_md": "the full markdown body, with newlines as \\n inside the JSON string"
+}
+
+Inside "body_md", every newline must be escaped as \\n and every double-quote as \\". This is a JSON string — it must parse cleanly with JSON.parse.`;
 
 function buildSystem(samples: VoiceSample[], retryFeedback: string[]): string {
   const sampleBlock =
@@ -333,19 +354,57 @@ function buildUserPrompt(topic: Topic): string {
 Write the post.`;
 }
 
-const RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    title: { type: Type.STRING },
-    description: { type: Type.STRING },
-    tags: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-    },
-    body_md: { type: Type.STRING },
-  },
-  required: ["title", "description", "tags", "body_md"],
-} as const;
+/**
+ * Pull a JSON object out of a Gemma response. Gemma doesn't support
+ * Gemini's JSON mode, so the response is plain text that we expect
+ * to contain a JSON object.
+ *
+ * Order of attempts (each falls through on failure):
+ *   1. Parse the trimmed raw as JSON. Happy path — works when the
+ *      model followed instructions and emitted bare JSON.
+ *   2. Strip an OUTER markdown fence (`^```json … ```$` anchored
+ *      both ends) and parse the contents. Handles the case where
+ *      the model wraps the response in a fence despite being told
+ *      not to.
+ *   3. Slice from the first `{` to the last `}`. Last-resort
+ *      recovery for responses with leading/trailing prose.
+ *
+ * The naive "strip any fence anywhere" approach the topic phase
+ * uses would break here because blog bodies contain ```sql … ```
+ * and similar code-fenced blocks INSIDE the body_md value. An
+ * un-anchored fence regex would match the first inner code block
+ * and discard the surrounding JSON wrapper.
+ */
+function extractJson(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error("empty model response");
+
+  // 1. Direct parse.
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    /* fall through */
+  }
+
+  // 2. Strip an outer fence (anchored to start AND end).
+  const fenceWrap = trimmed.match(/^```(?:json)?\s*([\s\S]+?)\s*```\s*$/);
+  if (fenceWrap) {
+    try {
+      return JSON.parse(fenceWrap[1].trim());
+    } catch {
+      /* fall through */
+    }
+  }
+
+  // 3. Last-resort slice between the first `{` and last `}`.
+  const first = trimmed.indexOf("{");
+  const last = trimmed.lastIndexOf("}");
+  if (first < 0 || last <= first) {
+    const preview = trimmed.slice(0, 200).replace(/\s+/g, " ");
+    throw new Error(`no JSON object in model response (got: "${preview}")`);
+  }
+  return JSON.parse(trimmed.slice(first, last + 1));
+}
 
 function validateDraftShape(parsed: unknown): DraftPost {
   if (!parsed || typeof parsed !== "object") {
@@ -392,25 +451,17 @@ async function callWriter(
   samples: VoiceSample[],
   retryFeedback: string[],
 ): Promise<DraftPost> {
+  // Gemma is text-only — no responseSchema, no thinkingConfig, no
+  // JSON mode. We keep maxOutputTokens generous (no thinking-token
+  // contention here, but JSON-quoting still inflates raw chars by
+  // ~1.4×) and lean on the prompt to enforce JSON shape.
   const gen = await gemini.models.generateContent({
     model: WRITER_MODEL,
     contents: [{ role: "user", parts: [{ text: buildUserPrompt(topic) }] }],
     config: {
       systemInstruction: buildSystem(samples, retryFeedback),
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA,
       temperature: 0.7,
-      // Generous budget. JSON-quoting a 2000-word body (newlines
-      // become `\n`, quotes become `\"`) inflates output by ~1.4×;
-      // Gemini 2.5 Flash also spends thinking tokens out of the
-      // same pool. 8000 tokens left us truncated mid-body in
-      // production — 24000 has comfortable headroom for a
-      // 2000-word post plus several thousand thinking tokens.
       maxOutputTokens: 24000,
-      // Cap thinking explicitly so it can't gobble the entire
-      // budget on a complex topic. 2048 is plenty for "plan a blog
-      // post"; the real intelligence is in the prose.
-      thinkingConfig: { thinkingBudget: 2048 },
     },
   });
 
@@ -423,10 +474,9 @@ async function callWriter(
     );
   }
 
-  // Truncation detection — if Gemini hit MAX_TOKENS mid-stream, the
-  // JSON wrapper is unclosed and JSON.parse will fail anyway. Surface
-  // the real cause (output cap too low for this topic) instead of
-  // burying it inside a parser error.
+  // Truncation detection — if the model hit MAX_TOKENS mid-stream
+  // the JSON wrapper is unclosed. Surface the real cause instead of
+  // letting the parser failure mask it.
   if (finishReason && String(finishReason).toUpperCase().includes("MAX")) {
     throw new Error(
       `writer: response truncated at MAX_TOKENS (got ${text.length} chars; bump maxOutputTokens or shorten the post)`,
@@ -435,7 +485,7 @@ async function callWriter(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    parsed = extractJson(text);
   } catch (err) {
     const preview = text.slice(0, 200).replace(/\s+/g, " ");
     throw new Error(
