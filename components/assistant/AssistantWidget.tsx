@@ -288,7 +288,7 @@ export function AssistantWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed bottom-5 right-5 z-50 flex flex-col w-[min(420px,calc(100vw-2.5rem))] h-[min(620px,calc(100vh-2.5rem))] rounded-2xl hairline bg-canvas-2/95 backdrop-blur shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] overflow-hidden"
+            className="fixed inset-0 z-50 flex flex-col rounded-none bg-canvas-2/95 backdrop-blur overflow-hidden sm:inset-auto sm:bottom-5 sm:right-5 sm:w-[min(420px,calc(100vw-2.5rem))] sm:h-[min(620px,calc(100vh-2.5rem))] sm:rounded-2xl sm:hairline sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]"
             role="dialog"
             aria-label="श्रीman — Rahul's AI assistant"
           >
