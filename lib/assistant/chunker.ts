@@ -18,9 +18,13 @@
  * conservative approximation across English + code.
  */
 
-export const TARGET_TOKENS = 800;
-export const MAX_TOKENS = 1100; // hard ceiling per chunk
-export const OVERLAP_TOKENS = 100;
+// Tighter chunking for higher retrieval precision. Smaller chunks
+// score against queries more accurately; larger overlap preserves
+// cross-chunk continuity so paragraph-spanning topics don't get
+// torn in half.
+export const TARGET_TOKENS = 400;
+export const MAX_TOKENS = 550;     // hard ceiling per chunk
+export const OVERLAP_TOKENS = 150;
 
 const CHARS_PER_TOKEN = 4;
 const TARGET_CHARS = TARGET_TOKENS * CHARS_PER_TOKEN;

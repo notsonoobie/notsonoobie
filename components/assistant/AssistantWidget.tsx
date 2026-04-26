@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp, Loader2, MessageCircle, Sparkles, X } from "lucide-react";
 import { AssistantLoader } from "./AssistantLoader";
 import { AssistantMarkdown } from "./AssistantMarkdown";
+import { getStartersForPath } from "@/lib/assistant/starters";
 
 /**
  * Capture what the user is currently viewing — pathname, title, full
@@ -52,13 +53,6 @@ type Message = {
   /** True if the request errored mid-stream. */
   error?: boolean;
 };
-
-const STARTERS = [
-  "What does Rahul work on?",
-  "Has he worked with Kafka at scale?",
-  "Which course covers RAG?",
-  "Show me his most popular blog post.",
-];
 
 let messageCounter = 0;
 const nextId = () => `m${++messageCounter}-${Date.now()}`;
@@ -324,7 +318,7 @@ export function AssistantWidget() {
               className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-4"
             >
               {messages.length === 0 ? (
-                <EmptyState onPick={(t) => void send(t)} />
+                <EmptyState pathname={pathname} onPick={(t) => void send(t)} />
               ) : (
                 messages.map((m) => <MessageBubble key={m.id} message={m} />)
               )}
@@ -368,7 +362,14 @@ export function AssistantWidget() {
   );
 }
 
-function EmptyState({ onPick }: { onPick: (q: string) => void }) {
+function EmptyState({
+  pathname,
+  onPick,
+}: {
+  pathname: string;
+  onPick: (q: string) => void;
+}) {
+  const starters = getStartersForPath(pathname);
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-start gap-2.5 mb-4">
@@ -383,7 +384,7 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
-        {STARTERS.map((s) => (
+        {starters.map((s) => (
           <button
             key={s}
             onClick={() => onPick(s)}

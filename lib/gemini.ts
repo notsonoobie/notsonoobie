@@ -25,6 +25,17 @@ export const EMBEDDING_MODEL = "gemini-embedding-001";
 export const CHAT_MODEL = "gemini-2.5-flash";
 export const EMBEDDING_DIM = 768;
 
+/**
+ * Asymmetric embedding hint. Documents indexed for retrieval should
+ * use `RETRIEVAL_DOCUMENT`; the queries searching against them
+ * should use `RETRIEVAL_QUERY`. Gemini optimises the vector space
+ * differently for each, materially improving recall.
+ */
+export type EmbeddingTaskType =
+  | "RETRIEVAL_DOCUMENT"
+  | "RETRIEVAL_QUERY"
+  | "SEMANTIC_SIMILARITY";
+
 let cached: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI | null {
@@ -41,14 +52,17 @@ export function isGeminiConfigured(): boolean {
 /**
  * Embed a single text into a 768-dim vector. Returns `null` if the
  * client isn't configured or the API errors. Truncates input above
- * Gemini's per-request limit (~8000 tokens for embedding-001).
+ * Gemini's per-request limit.
  *
- * Truncation strategy: Gemini's API accepts up to ~2048 input
- * tokens for embedding-001 by default; ~30k chars is a safe upper
- * bound for the kinds of chunks we generate (target ~800 tokens =
- * ~3200 chars).
+ * Pass `taskType` to bias Gemini's embedding for the asymmetric
+ * retrieval pattern: `RETRIEVAL_DOCUMENT` for indexed content,
+ * `RETRIEVAL_QUERY` for the user's question. Without it, Gemini
+ * uses a generic embedding that's strictly weaker for retrieval.
  */
-export async function embedText(input: string): Promise<number[] | null> {
+export async function embedText(
+  input: string,
+  taskType: EmbeddingTaskType = "RETRIEVAL_DOCUMENT",
+): Promise<number[] | null> {
   const client = getClient();
   if (!client) return null;
   const truncated = input.slice(0, 30_000);
@@ -58,10 +72,7 @@ export async function embedText(input: string): Promise<number[] | null> {
       contents: truncated,
       config: {
         outputDimensionality: EMBEDDING_DIM,
-        // Two-sided pattern: documents at index time use
-        // RETRIEVAL_DOCUMENT, queries at search time use
-        // RETRIEVAL_QUERY. Caller passes via the wrapper helpers
-        // below so this function stays general.
+        taskType,
       },
     });
     const values = res.embeddings?.[0]?.values;
