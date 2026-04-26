@@ -5,7 +5,6 @@ import { getAvailability } from "@/lib/availability";
 import { profile } from "@/lib/data";
 import { motion } from "framer-motion";
 import { ArrowDown } from "lucide-react";
-import { useEffect, useState } from "react";
 import { ServiceMesh } from "./ServiceMesh";
 
 export function Hero() {
@@ -20,9 +19,12 @@ export function Hero() {
       {/* Full-bleed faint dotted grid */}
       <div aria-hidden className="absolute inset-0 bg-grid bg-grid-fade opacity-40 pointer-events-none" />
 
-      {/* Top meta bar — pr-16 on mobile/tablet keeps the TimeStamp clear of the
-          SidebarNav burger (top-4 right-4 size-10) that's visible below lg. */}
-      <div className="absolute top-0 left-0 right-0 z-20 pl-6 pr-16 md:pl-10 lg:pr-10 pt-6 flex items-center justify-between font-mono text-[11px] text-ink-dim">
+      {/* Top meta bar — consulting status + region chips + clock. Hidden
+          on every breakpoint where the SidebarNav burger is visible
+          (top-4 left-4, hidden at lg+). On mobile/tablet the bar would
+          collide with the burger on the left and the UserMenu on the
+          right; only desktop has space for it. */}
+      <div className="absolute top-0 left-0 right-0 z-20 px-6 md:px-10 pt-6 hidden lg:flex items-center justify-between font-mono text-[11px] text-ink-dim">
         <div className="flex items-center gap-2">
           <span
             className={`inline-block size-1.5 rounded-full shadow-[0_0_8px_currentColor] ${
@@ -31,16 +33,23 @@ export function Hero() {
           />
           <span>{availability.statusLabel} · mumbai_in</span>
         </div>
-        <div className="hidden sm:flex items-center gap-4 opacity-80">
+        <div className="flex items-center gap-4 opacity-80">
           <span>region: ap-south-1</span>
           <span>build: stable</span>
           <span>latency: 12ms</span>
         </div>
-        <TimeStamp />
+        {/* Empty third child preserves the original justify-between
+            distribution so the region chips stay roughly centred
+            instead of snapping to the right edge after the clock
+            was removed. */}
+        <div aria-hidden />
       </div>
 
-      {/* Monogram */}
-      <div className="absolute top-16 left-6 md:left-10 z-20">
+      {/* Monogram — hidden below lg because the SidebarNav burger sits at
+          top-4 left-4 on those breakpoints and a stacked RG box directly
+          beneath it reads as a duplicate UI affordance. Re-appears on
+          desktop where the burger is gone. */}
+      <div className="hidden lg:block absolute top-16 left-6 md:left-10 z-20">
         <div className="size-9 rounded-md hairline bg-canvas-2/60 backdrop-blur grid place-items-center font-mono text-[11px] tracking-[0.2em] text-cyan">
           RG
         </div>
@@ -151,23 +160,3 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TimeStamp() {
-  const [t, setT] = useState<string>("");
-  useEffect(() => {
-    const fmt = () => {
-      const d = new Date();
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      const ss = String(d.getSeconds()).padStart(2, "0");
-      setT(`${hh}:${mm}:${ss} UTC+05:30`);
-    };
-    fmt();
-    const i = setInterval(fmt, 1000);
-    return () => clearInterval(i);
-  }, []);
-  return (
-    <div className="font-mono text-[11px] text-ink-dim tabular-nums" suppressHydrationWarning>
-      {t || "··:··:·· UTC+05:30"}
-    </div>
-  );
-}

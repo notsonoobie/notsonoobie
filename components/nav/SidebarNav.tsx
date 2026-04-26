@@ -202,7 +202,7 @@ export function SidebarNav() {
       </aside>
 
       {/* Mobile: top bar / drawer */}
-      <div ref={mobileRef} className="lg:hidden fixed top-4 right-4 z-40">
+      <div ref={mobileRef} className="lg:hidden fixed top-4 left-4 z-40">
         <button
           onClick={() => setMobileOpen((v) => !v)}
           className="size-10 rounded-md hairline bg-canvas-2/80 backdrop-blur grid place-items-center"
@@ -217,7 +217,7 @@ export function SidebarNav() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="absolute right-0 top-12 min-w-[220px] rounded-xl hairline bg-canvas-2/95 backdrop-blur p-3 font-mono text-[12px]"
+              className="absolute left-0 top-12 min-w-[220px] rounded-xl hairline bg-canvas-2/95 backdrop-blur p-3 font-mono text-[12px]"
             >
               <div className="flex items-center justify-between px-1 pb-2 border-b border-line/80 mb-3">
                 <span className="text-ink-faint text-[10px] tracking-[0.18em] uppercase">~/rahul</span>
