@@ -375,26 +375,46 @@ async function callWriter(
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
       temperature: 0.7,
-      // 8000 tokens ≈ 6000 words of generation budget. Plenty of
-      // headroom for a 2000-word body wrapped in JSON.
-      maxOutputTokens: 8000,
+      // Generous budget. JSON-quoting a 2000-word body (newlines
+      // become `\n`, quotes become `\"`) inflates output by ~1.4×;
+      // Gemini 2.5 Flash also spends thinking tokens out of the
+      // same pool. 8000 tokens left us truncated mid-body in
+      // production — 24000 has comfortable headroom for a
+      // 2000-word post plus several thousand thinking tokens.
+      maxOutputTokens: 24000,
+      // Cap thinking explicitly so it can't gobble the entire
+      // budget on a complex topic. 2048 is plenty for "plan a blog
+      // post"; the real intelligence is in the prose.
+      thinkingConfig: { thinkingBudget: 2048 },
     },
   });
 
   const text = gen.text ?? "";
+  const finishReason = gen.candidates?.[0]?.finishReason;
+
   if (!text.trim()) {
-    const reason = gen.candidates?.[0]?.finishReason;
     throw new Error(
-      `writer: empty model response (finishReason=${reason ?? "unknown"})`,
+      `writer: empty model response (finishReason=${finishReason ?? "unknown"})`,
     );
   }
+
+  // Truncation detection — if Gemini hit MAX_TOKENS mid-stream, the
+  // JSON wrapper is unclosed and JSON.parse will fail anyway. Surface
+  // the real cause (output cap too low for this topic) instead of
+  // burying it inside a parser error.
+  if (finishReason && String(finishReason).toUpperCase().includes("MAX")) {
+    throw new Error(
+      `writer: response truncated at MAX_TOKENS (got ${text.length} chars; bump maxOutputTokens or shorten the post)`,
+    );
+  }
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (err) {
     const preview = text.slice(0, 200).replace(/\s+/g, " ");
     throw new Error(
-      `writer: response is not valid JSON: ${
+      `writer: response is not valid JSON (finishReason=${finishReason ?? "unknown"}, length=${text.length}): ${
         err instanceof Error ? err.message : String(err)
       } (preview: "${preview}")`,
     );
