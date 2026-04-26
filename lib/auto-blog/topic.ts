@@ -5,27 +5,17 @@ import "server-only";
 /**
  * Topic picker — first phase of the daily auto-blog cron.
  *
- * Picks ONE technical topic per run. To kill the Postgres / OLTP
- * bias the model has when shown a flat list of verticals, we now
- * **pick the vertical server-side** (uniform random over the 14
- * verticals) and inject it into the prompt as a hard constraint.
- * This guarantees diversity across software-engineering fields by
- * construction — over a 14-day window each vertical is expected
- * to come up exactly once, no LLM attention bias to fight.
+ * Picks ONE technical topic per run. Software engineering,
+ * solution architecture, and agentic AI are huge spaces — we let
+ * the model decide what to write about, with no server-side
+ * categorisation, no vertical pin, no "must fit in this bucket"
+ * constraint. The only steer is the dedup list of recent posts
+ * so the picker diverges from what's already been covered.
  *
  * Resilience:
  *   1. Grounded call (recency-aware via Google Search).
  *   2. Ungrounded fallback — Gemini occasionally emits no final
  *      text part when grounding fires. Same prompt, no tools.
- *
- * Removed (per "remove the over-plugged guardrails"):
- *   - Substring-overlap retry loop (3 attempts max)
- *   - Topic / angle length validations
- *   - "Already-rejected this run" prompt block
- *
- * The dedup list of recent posts is still in the prompt — it tells
- * the model what NOT to pick — but the picked topic is no longer
- * post-hoc rejected. Trust the model and the vertical constraint.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,51 +36,21 @@ type CorpusEntry = { title: string; description: string; tags: string[] };
 
 const TOPIC_MODEL = "gemini-3-flash-preview";
 
-/**
- * The verticals Rahul writes in. Server-side picks one uniformly at
- * random per run and pins it in the prompt. Adding / removing a
- * vertical immediately shifts the distribution — no other code
- * changes needed.
- */
-const TOPIC_VERTICALS = [
-  "Postgres / OLTP databases at scale",
-  "Distributed systems trade-offs (consistency, partitioning, ordering)",
-  "API design (REST vs gRPC vs GraphQL vs Protobuf)",
-  "API gateways (Apigee, Gravitee, Kong, Envoy/xDS)",
-  "Microservices boundaries and inter-service messaging (Kafka, NATS, Pulsar)",
-  "Platform engineering and developer-tools (CI/CD, IaC, multi-tenancy)",
-  "Cloud-native runtime concerns (Kubernetes pitfalls, autoscaling, cost)",
-  "Observability (tracing, structured logs, SLOs that survive contact)",
-  "Security and compliance for engineering leaders (BFSI / fintech context)",
-  "RAG architectures, vector retrieval, evaluation harnesses for LLM apps",
-  "Agentic systems (tool use, planner-executor patterns, MCP)",
-  "Backend language choices (Go, Node, Python) for specific workloads",
-  "Concurrency models and event-driven backends",
-  "Production AI systems (model serving, inference cost, drift)",
-  "Frontend / web performance (React, Next.js, edge runtimes, hydration cost)",
-  "Caching strategies (Redis, CDN, application-layer, invalidation)",
-  "Stream processing and real-time analytics (Flink, ksqlDB, ClickHouse)",
-  "Search and ranking (Elasticsearch, OpenSearch, vector + lexical hybrid)",
-];
-
-function pickVertical(): string {
-  return TOPIC_VERTICALS[Math.floor(Math.random() * TOPIC_VERTICALS.length)];
-}
-
 const SYSTEM = `You are a technical editor planning a single blog post for Rahul Gupta's personal engineering blog.
 
 His readers are senior software engineers, engineering managers, CTOs, CIOs, and CISOs at companies in the BFSI, fintech, SaaS and platform space. They have strong opinions, finite patience for hype, and want posts that change how they think about something concrete in their stack.
 
 # Pick ONE topic for today's post.
 
+You have full creative freedom across software engineering, solution architecture, and agentic AI. That's a huge space — backend, frontend, mobile, data, ML/AI, security, observability, distributed systems, platform engineering, developer tooling, cloud architecture, agentic systems, model serving, retrieval, evaluation, runtime, languages, anything. Range is the goal. Pick something that hasn't been covered in the recent corpus.
+
 The topic must:
 
-- Sit clearly inside the vertical specified in the user message — not a different vertical, not a blend of two.
 - Be technical and SPECIFIC — name a system, a pattern, a failure mode, a trade-off, a release, a regulation. Bad: "thinking about distributed systems". Good: "why naive sharding by user_id will tip a Postgres cluster at ~30M users".
 - Carry a contrarian angle, a hard-won lesson, or a "here's what most teams miss" framing. Posts that just summarise public docs add zero value.
 - Be writable in 1500-2000 words. If it could be a sentence, it's not a post; if it's a book chapter, it's not a post either.
 - Be aimed at SENIOR practitioners. Not a beginner explainer. Not a "what is X?" definition.
-- NOT semantically overlap any topic in the dedup list. "Different wording, same topic" still counts as a repeat.
+- NOT semantically overlap any topic in the dedup list. "Different wording, same topic" still counts as a repeat. If the recent corpus skews toward one area, deliberately pick something from a different area.
 
 # Use Google Search to find a real anchor:
 
@@ -118,16 +78,12 @@ function fmtCorpus(entries: CorpusEntry[]): string {
     .join("\n");
 }
 
-function buildUserPrompt(corpus: CorpusEntry[], vertical: string): string {
-  return `# Today's vertical (your topic MUST sit inside this one):
-
-${vertical}
-
-# Topics already covered in the recent corpus (DO NOT pick anything semantically close to these):
+function buildUserPrompt(corpus: CorpusEntry[]): string {
+  return `# Topics already covered in the recent corpus (DO NOT pick anything semantically close to these — and if the corpus skews toward one area, deliberately diverge):
 
 ${fmtCorpus(corpus)}
 
-# Now pick today's topic.`;
+# Now pick today's topic. Range across the breadth of software engineering, solution architecture, and agentic AI.`;
 }
 
 /**
@@ -238,10 +194,7 @@ export async function pickTopic(
     tags: Array.isArray(r.tags) ? r.tags : [],
   }));
 
-  const todayVertical = pickVertical();
-  console.log(`[auto-blog] today's vertical: ${todayVertical}`);
-
-  const userPrompt = buildUserPrompt(corpus, todayVertical);
+  const userPrompt = buildUserPrompt(corpus);
 
   // Single attempt with grounded → ungrounded fallback. No
   // post-hoc topic rejection / retry — trust the vertical
