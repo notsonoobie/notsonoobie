@@ -109,7 +109,7 @@ export function TagPicker({
         : `${label} · ${selected.length} selected`;
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative w-full sm:w-auto">
       <button
         ref={triggerRef}
         type="button"
@@ -117,7 +117,7 @@ export function TagPicker({
         aria-haspopup="listbox"
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center justify-between gap-2 h-11 px-3 min-w-[180px] rounded-md hairline font-mono text-[12px] tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${
+        className={`inline-flex w-full sm:w-auto items-center justify-between gap-2 h-11 px-3 sm:min-w-[180px] rounded-md hairline font-mono text-[12px] tracking-[0.05em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${
           selected.length > 0
             ? "bg-cyan/10 border-cyan/40 text-cyan"
             : "bg-canvas/60 hover:bg-canvas text-ink-dim hover:text-ink"
@@ -136,7 +136,7 @@ export function TagPicker({
           id={panelId}
           role="dialog"
           aria-label="Filter by topic"
-          className="absolute z-30 mt-2 w-[280px] sm:w-[320px] rounded-lg hairline bg-canvas-2/95 backdrop-blur-sm shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] overflow-hidden"
+          className="absolute z-30 mt-2 w-full sm:w-[320px] rounded-lg hairline bg-canvas-2/95 backdrop-blur-sm shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] overflow-hidden"
         >
           {/* Search input */}
           <div className="relative border-b border-line p-2">
