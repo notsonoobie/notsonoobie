@@ -5,15 +5,16 @@ import type { DraftPost } from "./writer";
 /**
  * Publisher — final phase of the daily auto-blog cron.
  *
- * Takes a `DraftPost`, normalises the slug, dedupes against existing
- * rows, computes reading-time / word-count, and inserts into
- * `public.blogs`. The Supabase database webhook on the `blogs` table
- * fires automatically on INSERT and cascades the new row into the
- * assistant index — no extra wiring here.
+ * Takes a `DraftPost`, normalises the slug, dedupes against
+ * existing rows, computes reading-time / word-count, and inserts
+ * into `public.blogs`. The Supabase database webhook on the
+ * `blogs` table fires automatically on INSERT and cascades the
+ * new row into the assistant index — no extra wiring here.
  *
  * Reading-stats algorithm is a direct port of
- * `scripts/import-blogs.ts:82-96` so DB rows look identical regardless
- * of whether they came from the importer or this cron.
+ * `scripts/import-blogs.ts:82-96` so DB rows look identical
+ * regardless of whether they came from the importer or this
+ * cron.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,12 +33,12 @@ export type PublishResult = {
 };
 
 /**
- * Reading stats — strip code fences, HTML, and markdown punctuation,
- * then divide whitespace-separated tokens by 220 wpm.
+ * Reading stats — strip code fences, HTML, and markdown
+ * punctuation, then divide whitespace-separated tokens by 220 wpm.
  *
- * Ported byte-for-byte from `scripts/import-blogs.ts:82-96` so cron
- * inserts match importer inserts exactly. Don't refactor without
- * updating both call sites.
+ * Ported byte-for-byte from `scripts/import-blogs.ts:82-96` so
+ * cron inserts match importer inserts exactly. Don't refactor
+ * without updating both call sites.
  */
 export function computeReadingStats(body: string): {
   readingTime: number;
@@ -59,23 +60,27 @@ export function computeReadingStats(body: string): {
  * - lowercase
  * - replace any run of non-alphanumerics with a single hyphen
  * - trim leading/trailing hyphens
- * - cap at SLUG_MAX chars (clipped on a hyphen boundary if possible)
+ * - cap at SLUG_MAX chars (clipped on a hyphen boundary if one
+ *   exists in the back half; otherwise hard-clipped at SLUG_MAX)
  */
 export function slugifyTitle(input: string): string {
   const normalised = input
     .normalize("NFKD")
-    // Strip combining marks (diacritics) — \p{M} is the Unicode "Mark"
-    // category. The /u flag is required for property escapes.
+    // Strip combining marks (diacritics) — \p{M} is the Unicode
+    // "Mark" category. The /u flag is required for property escapes.
     .replace(/\p{M}+/gu, "")
     .toLowerCase();
   const hyphened = normalised
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   if (hyphened.length <= SLUG_MAX) return hyphened;
-  // Clip on a hyphen boundary so we don't slice mid-word.
+  // Clip on a hyphen boundary so we don't slice mid-word — but
+  // only if a hyphen sits in the back half. Otherwise just hard-
+  // clip and trim a trailing hyphen if present.
   const sliced = hyphened.slice(0, SLUG_MAX);
   const lastHyphen = sliced.lastIndexOf("-");
-  return lastHyphen > SLUG_MAX / 2 ? sliced.slice(0, lastHyphen) : sliced;
+  if (lastHyphen > SLUG_MAX / 2) return sliced.slice(0, lastHyphen);
+  return sliced.replace(/-+$/, "");
 }
 
 async function findFreeSlug(
@@ -99,22 +104,68 @@ async function findFreeSlug(
   );
 }
 
+/**
+ * Returns the slug of the most recent blog whose `published_at`
+ * falls within the last 22 hours, or null if no recent post.
+ *
+ * Idempotency guard for the cron: Vercel can fire the same cron
+ * within the same calendar day (manual re-trigger, retry on a
+ * transient timeout, schedule glitch), and we don't want a duplicate
+ * post under Rahul's byline. The 22-hour window is intentionally
+ * shorter than 24h so that a cron firing at 02:30 UTC on day N+1
+ * doesn't collide with the one that ran at 02:30 UTC on day N.
+ */
+export async function findRecentlyPublished(
+  supabase: AnySupabase,
+): Promise<{ slug: string; published_at: string } | null> {
+  const cutoff = new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("blogs")
+    .select("slug, published_at")
+    .gte("published_at", cutoff)
+    .order("published_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    // Don't block the cron on a guard-query failure — log and let
+    // the slug uniqueness be the safety net.
+    console.warn("[auto-blog] findRecentlyPublished failed:", error.message);
+    return null;
+  }
+  return data as { slug: string; published_at: string } | null;
+}
+
+export type PublishOptions = {
+  /** When true, skips the DB insert and returns a synthetic result.
+   *  Used by the route's `?dryRun=1` mode to test the full
+   *  generation pipeline without committing a row. */
+  dryRun?: boolean;
+};
+
 export async function publishBlog(
   supabase: AnySupabase,
   draft: DraftPost,
+  opts: PublishOptions = {},
 ): Promise<PublishResult> {
-  // Prefer a slug derived from the title so URL shape is stable even
-  // if the model produced something quirky in `draft.slug`. Fall back
-  // to the model's slug if title-slugification fails (won't happen in
-  // practice — `validateDraft` already guarantees a non-trivial title).
-  const baseSlug =
-    slugifyTitle(draft.title) || slugifyTitle(draft.slug) || "post";
-  const slug = await findFreeSlug(supabase, baseSlug);
+  const baseSlug = slugifyTitle(draft.title) || "post";
+  const slug = opts.dryRun
+    ? `${baseSlug}-dryrun`
+    : await findFreeSlug(supabase, baseSlug);
 
   const { readingTime, wordCount } = computeReadingStats(draft.body_md);
 
   const isPublished = process.env.AUTO_BLOG_DRAFT !== "true";
   const nowIso = new Date().toISOString();
+
+  if (opts.dryRun) {
+    return {
+      slug,
+      id: "dry-run",
+      isPublished: false, // dry-run never goes live
+      wordCount,
+      readingTime,
+    };
+  }
 
   const row = {
     slug,
@@ -140,9 +191,6 @@ export async function publishBlog(
 
   if (error) {
     if (error.code === "23505") {
-      // Unique-violation race: another insert grabbed our slug between
-      // findFreeSlug and the insert. Vanishingly rare for a once-a-day
-      // cron, but surface it cleanly.
       throw new Error(`publishBlog: slug collision race on "${slug}"`);
     }
     throw new Error(`publishBlog: insert failed: ${error.message}`);
