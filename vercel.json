@@ -8,6 +8,10 @@
     {
       "path": "/api/admin/reindex-assistant",
       "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/api/admin/auto-blog",
+      "schedule": "30 2 * * *"
     }
   ]
 }
