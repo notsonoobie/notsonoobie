@@ -1,4 +1,5 @@
 import "server-only";
+import matter from "gray-matter";
 import type { GoogleGenAI } from "@google/genai";
 import type { Topic } from "./topic";
 
@@ -9,8 +10,13 @@ import type { Topic } from "./topic";
  * Rahul's voice. Two layers of guarantee that the output is
  * publishable:
  *
- *   1. Structured JSON output (`responseSchema`) so the response
- *      shape is non-negotiable — no text-extraction games.
+ *   1. YAML frontmatter + markdown body output format. The body
+ *      lives outside the frontmatter so the model never has to
+ *      escape backslashes (\d, \w, C:\Users\…), newlines, or
+ *      quotes — every one of which broke the previous JSON-mode
+ *      output for technical posts. Same shape as the human
+ *      importer at scripts/import-blogs.ts:142, parsed with the
+ *      same gray-matter dependency.
  *   2. A post-generation quality gate that rejects the draft if
  *      it (a) uses any phrase from the LLM-tell blocklist, (b)
  *      lacks structural minimums (section count, code block,
@@ -32,10 +38,10 @@ import type { Topic } from "./topic";
 
 // Gemma model served through the Gemini API surface. Open-weights
 // model — does NOT support Gemini-2.5-only features like
-// `responseSchema` (JSON mode) or `thinkingConfig`. We fall back to
-// text-mode generation + manual JSON extraction (same pattern as
-// topic.ts) and lean on prompt instructions to keep output well-
-// formed.
+// `responseSchema` (JSON mode) or `thinkingConfig`. Frontmatter
+// output sidesteps both: no schema needed, no thinking budget
+// contention, and the body content can contain any character class
+// without breaking the parse.
 const WRITER_MODEL = "gemma-4-26b-a4b-it";
 
 export type DraftPost = {
@@ -301,18 +307,18 @@ Don't include a top-level \`# Title\` line — the page renders the title from t
 
 # Output format (CRITICAL — read carefully)
 
-Return ONLY a single JSON object. No prose before it. No prose after it. No markdown fences (no \`\`\`json … \`\`\` wrapper).
+Output the post as YAML frontmatter followed by the markdown body. Start the response with three dashes on their own line. Then the frontmatter (title, description, tags). Then three dashes on their own line. Then the body.
 
-The object must have exactly these keys, all strings or string arrays:
+ALWAYS quote the title and description with single quotes. Always wrap tags in a JSON-style inline array with double-quoted strings. If the title or description contains a literal single quote, double it ('don''t'). Do not put any prose before the opening '---'. Do not wrap the response in a markdown fence.
 
-{
-  "title": "the post title",
-  "description": "the post description",
-  "tags": ["tag-one", "tag-two", "tag-three"],
-  "body_md": "the full markdown body, with newlines as \\n inside the JSON string"
-}
+Example of the exact format:
 
-Inside "body_md", every newline must be escaped as \\n and every double-quote as \\". This is a JSON string — it must parse cleanly with JSON.parse.`;
+---
+title: 'Sharp claim-shaped title here'
+description: 'One or two complete sentences leading with the substantive claim.'
+tags: ["primary-tag", "secondary-tag", "tertiary-tag"]
+---
+The intro paragraph goes here. Then the rest of the post — sections, code fences, tables, everything. Newlines, backticks, backslashes, and double quotes are all fine; write them as-is. Do NOT include a top-level # heading; the page renders the title from the database row.`;
 
 function buildSystem(samples: VoiceSample[], retryFeedback: string[]): string {
   const sampleBlock =
@@ -355,55 +361,62 @@ Write the post.`;
 }
 
 /**
- * Pull a JSON object out of a Gemma response. Gemma doesn't support
- * Gemini's JSON mode, so the response is plain text that we expect
- * to contain a JSON object.
+ * Pull a frontmatter draft out of a Gemma response.
  *
- * Order of attempts (each falls through on failure):
- *   1. Parse the trimmed raw as JSON. Happy path — works when the
- *      model followed instructions and emitted bare JSON.
- *   2. Strip an OUTER markdown fence (`^```json … ```$` anchored
- *      both ends) and parse the contents. Handles the case where
- *      the model wraps the response in a fence despite being told
- *      not to.
- *   3. Slice from the first `{` to the last `}`. Last-resort
- *      recovery for responses with leading/trailing prose.
+ * Expects the model to emit `---\n<yaml>\n---\n<markdown body>`
+ * verbatim. Pre-processes for two common deviations:
  *
- * The naive "strip any fence anywhere" approach the topic phase
- * uses would break here because blog bodies contain ```sql … ```
- * and similar code-fenced blocks INSIDE the body_md value. An
- * un-anchored fence regex would match the first inner code block
- * and discard the surrounding JSON wrapper.
+ *   1. Outer markdown fence (`^```yaml ... ```$`) — strip it.
+ *      Anchored to start AND end so we don't accidentally chop
+ *      a code block that lives inside the body.
+ *   2. Leading prose before the first `---` line — discard
+ *      everything up to and including the line break preceding
+ *      the first `---`. gray-matter only accepts input that
+ *      BEGINS with `---`.
+ *
+ * Returns the same `{ title, description, tags, body_md }` shape
+ * `validateDraftShape` expects so the rest of the pipeline is
+ * unchanged.
  */
-function extractJson(raw: string): unknown {
-  const trimmed = raw.trim();
+function extractFrontmatter(raw: string): unknown {
+  let trimmed = raw.trim();
   if (!trimmed) throw new Error("empty model response");
 
-  // 1. Direct parse.
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    /* fall through */
-  }
+  // 1. Strip an outer fence (`^```yaml … ```$`, also `markdown`,
+  //    `md`, or unlabelled). Anchored both ends.
+  const fenceWrap = trimmed.match(
+    /^```(?:ya?ml|markdown|md)?\s*\n([\s\S]+?)\n```\s*$/,
+  );
+  if (fenceWrap) trimmed = fenceWrap[1].trim();
 
-  // 2. Strip an outer fence (anchored to start AND end).
-  const fenceWrap = trimmed.match(/^```(?:json)?\s*([\s\S]+?)\s*```\s*$/);
-  if (fenceWrap) {
-    try {
-      return JSON.parse(fenceWrap[1].trim());
-    } catch {
-      /* fall through */
+  // 2. Drop any leading prose before the first `---` line.
+  //    gray-matter requires the input to START with `---`.
+  if (!trimmed.startsWith("---")) {
+    const m = trimmed.match(/^[\s\S]*?(^---\s*$)/m);
+    if (m) {
+      const idx = trimmed.indexOf(m[1]);
+      if (idx >= 0) trimmed = trimmed.slice(idx);
     }
   }
 
-  // 3. Last-resort slice between the first `{` and last `}`.
-  const first = trimmed.indexOf("{");
-  const last = trimmed.lastIndexOf("}");
-  if (first < 0 || last <= first) {
-    const preview = trimmed.slice(0, 200).replace(/\s+/g, " ");
-    throw new Error(`no JSON object in model response (got: "${preview}")`);
+  if (!trimmed.startsWith("---")) {
+    const preview = raw.slice(0, 200).replace(/\s+/g, " ");
+    throw new Error(`no YAML frontmatter found (got: "${preview}")`);
   }
-  return JSON.parse(trimmed.slice(first, last + 1));
+
+  let parsed: ReturnType<typeof matter>;
+  try {
+    parsed = matter(trimmed);
+  } catch (err) {
+    const preview = trimmed.slice(0, 200).replace(/\s+/g, " ");
+    throw new Error(
+      `frontmatter parse failed: ${
+        err instanceof Error ? err.message : String(err)
+      } (preview: "${preview}")`,
+    );
+  }
+
+  return { ...parsed.data, body_md: parsed.content.trim() };
 }
 
 function validateDraftShape(parsed: unknown): DraftPost {
@@ -485,11 +498,11 @@ async function callWriter(
 
   let parsed: unknown;
   try {
-    parsed = extractJson(text);
+    parsed = extractFrontmatter(text);
   } catch (err) {
     const preview = text.slice(0, 200).replace(/\s+/g, " ");
     throw new Error(
-      `writer: response is not valid JSON (finishReason=${finishReason ?? "unknown"}, length=${text.length}): ${
+      `writer: frontmatter extraction failed (finishReason=${finishReason ?? "unknown"}, length=${text.length}): ${
         err instanceof Error ? err.message : String(err)
       } (preview: "${preview}")`,
     );
