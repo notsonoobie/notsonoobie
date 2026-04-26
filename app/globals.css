@@ -109,6 +109,29 @@
   animation: edge-pulse 3.6s ease-in-out infinite;
 }
 
+/* Iridescent shimmer for AI loader text — sweeps the gradient across
+   the glyphs continuously. Pair with `bg-clip-text` + a wide gradient. */
+@keyframes assistant-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: -200% 50%; }
+}
+.assistant-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-cyan),
+    var(--color-violet),
+    var(--color-mint),
+    var(--color-amber),
+    var(--color-rose),
+    var(--color-cyan)
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: assistant-shimmer 3.2s linear infinite;
+}
+
 /* Subtle scanline */
 .scanline::after {
   content: "";

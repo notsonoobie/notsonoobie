@@ -6,6 +6,7 @@ import { LenisProvider } from "@/components/motion/LenisProvider";
 import { ScrollToTopOnRoute } from "@/components/motion/ScrollToTopOnRoute";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import {
   SITE_AUTHOR,
   SITE_DESCRIPTION,
@@ -148,6 +149,7 @@ export default function RootLayout({
           <ScrollToTopOnRoute />
           {children}
         </LenisProvider>
+        <AssistantWidget />
         <JsonLd />
         <Analytics />
       </body>
